@@ -10,15 +10,15 @@
 <!-- Custom Timeline Styles -->
 <style>
     #tripMap {
-        height: 400px;
+        height: 600px;
         width: 100%;
-        border-radius: 8px;
+        border-radius: 6px;
     }
     
     /* Custom Timeline Styles */
     .timeline-container {
         overflow-x: auto;
-        padding: 20px 0;
+        padding: 5px 0;
         width: 100%;
     }
     
@@ -158,45 +158,151 @@
         margin: 8px;
         min-width: 200px;
     }
+    
+    /* Header styling */
+    .sticky-header {
+        background: white;
+        padding: 0.75rem 1rem;
+        border-radius: 0;
+        margin-bottom: 0.75rem;
+    }
+    
+    .sticky-header h1 {
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+    
+    .sticky-header .d-flex {
+        font-size: 0.9rem;
+        color: #495057;
+    }
+    
+    .sticky-header i {
+        width: 18px;
+        text-align: center;
+    }
+    
+    .sticky-header .breadcrumb {
+        background: transparent;
+    }
+    
+    .sticky-header .breadcrumb-item a {
+        color: #0d6efd;
+        text-decoration: none;
+    }
+    
+    .sticky-header .breadcrumb-item.active {
+        color: #6c757d;
+    }
+    
+    /* Simple, clean spacing adjustments */
+    .card {
+        margin-bottom: 0.5rem;
+        border: 1px solid rgba(0,0,0,.125);
+    }
+
+    .card-body {
+        padding: 0.5rem;
+    }
+    
+    /* Ensure p-0 class works - zero padding for map */
+    .card-body.p-0 {
+        padding: 0 !important;
+    }
+    
+    /* Map card - remove border radius from inner div to fit card perfectly */
+    .card-body.p-0 #tripMap {
+        border-radius: 0;
+    }
+
+    .card-header {
+        padding: 0.5rem;
+    }
+
+    /* Compact buttons */
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Compact breadcrumb and tabs */
+    .breadcrumb {
+        margin-bottom: 0.25rem;
+        padding: 0.25rem 0;
+        background: transparent;
+    }
+    
+    .nav-tabs {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Map still prominent but slightly tighter radius */
+    #tripMap { border-radius: 6px; }
+
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid mt-2 px-3">
     <!-- Trip Header -->
-    <div class="sticky-header border-bottom pb-3 mb-3 bg-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
+    <div class="sticky-header border-bottom pb-2 mb-2 bg-white">
+        <div class="row align-items-center">
+            <div class="col-md-8">
                 <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-2">
+                    <ol class="breadcrumb mb-1">
                         <li class="breadcrumb-item"><a href="{{ url_for('travel_list') }}">My Trips</a></li>
                         <li class="breadcrumb-item active">{{ trip.name }}</li>
                     </ol>
                 </nav>
-                <h1>{{ trip.name }}</h1>
-                <p class="text-muted mb-0">
-                    <i class="fas fa-map-marker-alt"></i> 
-                    {{ trip.destination_city }}{% if trip.destination_country %}, {{ trip.destination_country }}{% endif %}
-                    <span class="ms-3">
-                        <i class="fas fa-calendar"></i>
-                        {{ trip.start_date|format_date }} - {{ trip.end_date|format_date }}
-                    </span>
-                </p>
+                <h1 class="h3 mb-2">{{ trip.name }}</h1>
+                
+                <div class="d-flex flex-wrap gap-3">
+                    <div>
+                        <i class="fas fa-map-marker-alt text-primary"></i>
+                        <span class="ms-1">{{ trip.destination_city }}{% if trip.destination_country %}, {{ trip.destination_country }}{% endif %}</span>
+                    </div>
+                    <div>
+                        <i class="fas fa-calendar text-primary"></i>
+                        <span class="ms-1">{{ trip.start_date|format_date }} - {{ trip.end_date|format_date }}</span>
+                    </div>
+                    <div>
+                        <i class="fas fa-clock text-primary"></i>
+                        <span class="ms-1">{{ trip.duration_days }} days</span>
+                    </div>
+                    <div>
+                        <i class="fas fa-map-marked-alt text-success"></i>
+                        <span class="ms-1">{{ trip.activity_count }} activities</span>
+                    </div>
+                    <div>
+                        <i class="fas fa-hotel text-info"></i>
+                        <span class="ms-1">{{ trip.accommodation_count }} accommodations</span>
+                    </div>
+                    <div>
+                        <i class="fas fa-route text-warning"></i>
+                        <span class="ms-1">{{ trip.route_count }} routes</span>
+                    </div>
+                </div>
             </div>
-            <div class="btn-group">
-                <a href="{{ url_for('export_calendar', trip_id=trip.id) }}" 
-                   class="btn btn-success"
-                   download="{{ trip.name }}.ics"
-                   title="Add all activities to your calendar">
-                    <i class="fas fa-calendar-plus"></i>
-                    Add to Calendar
-                </a>
-                <button class="btn btn-outline-primary" onclick="showDailyView()">
-                    <i class="fas fa-calendar-day"></i> Daily View
-                </button>
-                <a href="{{ url_for('trip_edit', trip_id=trip.id) }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-edit"></i> Edit Trip
-                </a>
+            
+            <div class="col-md-4 text-end">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{{ url_for('export_calendar', trip_id=trip.id) }}" 
+                       class="btn btn-success btn-sm"
+                       download="{{ trip.name }}.ics">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </a>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showDailyView()">
+                        <i class="fas fa-calendar-day"></i> Daily View
+                    </button>
+                    <a href="{{ url_for('trip_edit', trip_id=trip.id) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-edit"></i> Edit Trip
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -239,51 +345,12 @@
     <div class="tab-content" id="tripTabsContent">
         <!-- Overview Tab -->
         <div class="tab-pane fade show active" id="overview" role="tabpanel">
-            <div class="row">
-                <!-- Trip Summary Card -->
-                <div class="col-lg-8">
-                    <div class="card mb-4">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Trip Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if trip.description %}
-                            <p class="mb-4">{{ trip.description }}</p>
-                            {% endif %}
-
-                            <div class="row text-center mb-4">
-                                <div class="col-md-3 col-6 mb-3">
-                                    <div class="stat-card">
-                                        <i class="fas fa-calendar-day fa-2x text-primary mb-2"></i>
-                                        <h3 class="mb-0">{{ trip.duration_days }}</h3>
-                                        <small class="text-muted">Days</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-6 mb-3">
-                                    <div class="stat-card">
-                                        <i class="fas fa-map-marked-alt fa-2x text-success mb-2"></i>
-                                        <h3 class="mb-0">{{ trip.activity_count }}</h3>
-                                        <small class="text-muted">Activities</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-6 mb-3">
-                                    <div class="stat-card">
-                                        <i class="fas fa-hotel fa-2x text-info mb-2"></i>
-                                        <h3 class="mb-0">{{ trip.accommodation_count }}</h3>
-                                        <small class="text-muted">Accommodations</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-6 mb-3">
-                                    <div class="stat-card">
-                                        <i class="fas fa-route fa-2x text-warning mb-2"></i>
-                                        <h3 class="mb-0">{{ trip.route_count }}</h3>
-                                        <small class="text-muted">Routes</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Map Placeholder -->
-                            <div id="tripMap" style="height: 400px; background: #f0f0f0; border-radius: 8px; position: relative;">
+            <div class="row g-2">
+                <!-- Map -->
+                <div class="col-lg-9">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div id="tripMap" style="background: #f0f0f0; position: relative;">
                                 <div class="position-absolute top-50 start-50 translate-middle text-center">
                                     <i class="fas fa-map fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">Map will load here</p>
@@ -294,35 +361,33 @@
                 </div>
 
                 <!-- Sidebar -->
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <!-- Weather Widget -->
-                    <div class="card mb-4">
+                    <div class="card">
                         <div class="card-header bg-info text-white">
                             <h6 class="mb-0"><i class="fas fa-cloud-sun"></i> Weather Forecast</h6>
                         </div>
                         <div class="card-body">
                             <div id="weatherWidget" class="text-center">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
+                                <p class="text-muted small mb-0">Weather data not available</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Quick Actions -->
-                    <div class="card mb-4">
+                    <div class="card">
                         <div class="card-header">
                             <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
                         </div>
                         <div class="card-body">
                             <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary" onclick="addActivity()">
+                                <button class="btn btn-outline-primary btn-sm" onclick="addActivity()">
                                     <i class="fas fa-plus"></i> Add Activity
                                 </button>
-                                <button class="btn btn-outline-success" onclick="addAccommodation()">
+                                <button class="btn btn-outline-success btn-sm" onclick="addAccommodation()">
                                     <i class="fas fa-plus"></i> Add Accommodation
                                 </button>
-                                <button class="btn btn-outline-warning" onclick="addExpense()">
+                                <button class="btn btn-outline-warning btn-sm" onclick="addExpense()">
                                     <i class="fas fa-plus"></i> Add Expense
                                 </button>
                             </div>
@@ -616,17 +681,35 @@
                     </div>
 
                     <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="activityLocation" class="form-label">Location Name</label>
+                            <input type="text" class="form-control" id="activityLocation" name="location_name" placeholder="Address or place name">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="activityCity" class="form-label">City <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
+                            <input type="text" class="form-control" id="activityCity" name="city" placeholder="e.g., Paris">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="activityCountry" class="form-label">Country <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
+                            <input type="text" class="form-control" id="activityCountry" name="country" placeholder="e.g., France">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="activityAddress" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="activityAddress" name="address" placeholder="Street address">
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="activityLocation" class="form-label">Location</label>
-                            <input type="text" class="form-control" id="activityLocation" name="location" placeholder="Address or place name">
+                            <label for="activityLatitude" class="form-label">Latitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
+                            <input type="number" step="0.000001" class="form-control" id="activityLatitude" name="latitude" placeholder="48.8566">
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="activityLatitude" class="form-label">Latitude</label>
-                            <input type="number" step="0.000001" class="form-control" id="activityLatitude" name="latitude" placeholder="51.5074">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="activityLongitude" class="form-label">Longitude</label>
-                            <input type="number" step="0.000001" class="form-control" id="activityLongitude" name="longitude" placeholder="-0.1278">
+                        <div class="col-md-6 mb-3">
+                            <label for="activityLongitude" class="form-label">Longitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
+                            <input type="number" step="0.000001" class="form-control" id="activityLongitude" name="longitude" placeholder="2.3522">
                         </div>
                     </div>
 
@@ -643,11 +726,11 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="activityCost" class="form-label">Estimated Cost</label>
-                            <input type="number" step="0.01" class="form-control" id="activityCost" name="estimated_cost" placeholder="0.00">
+                            <input type="number" step="0.01" class="form-control" id="activityCost" name="cost" placeholder="0.00">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="activityDuration" class="form-label">Duration (hours)</label>
-                            <input type="number" step="0.5" class="form-control" id="activityDuration" name="estimated_duration" placeholder="2.0">
+                            <input type="number" step="0.5" class="form-control" id="activityDuration" name="duration_minutes" placeholder="2.0">
                         </div>
                     </div>
 
@@ -698,23 +781,27 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-8 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label for="accommodationAddress" class="form-label">Address</label>
                             <input type="text" class="form-control" id="accommodationAddress" name="address">
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="accommodationCity" class="form-label">City</label>
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationCity" class="form-label">City <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
                             <input type="text" class="form-control" id="accommodationCity" name="city">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationCountry" class="form-label">Country <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
+                            <input type="text" class="form-control" id="accommodationCountry" name="country">
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label for="accommodationLatitude" class="form-label">Latitude</label>
+                            <label for="accommodationLatitude" class="form-label">Latitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
                             <input type="number" step="0.000001" class="form-control" id="accommodationLatitude" name="latitude">
                         </div>
                         <div class="col-md-3 mb-3">
-                            <label for="accommodationLongitude" class="form-label">Longitude</label>
+                            <label for="accommodationLongitude" class="form-label">Longitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
                             <input type="number" step="0.000001" class="form-control" id="accommodationLongitude" name="longitude">
                         </div>
                         <div class="col-md-3 mb-3">
@@ -921,6 +1008,11 @@
         position: sticky;
         top: 0;
         z-index: 1000;
+        background: white !important;
+    }
+    
+    nav.breadcrumb, .breadcrumb {
+        background: transparent !important;
     }
     
     .stat-card {
@@ -1730,6 +1822,9 @@ document.addEventListener('DOMContentLoaded', function() {
     accommodationModal = new bootstrap.Modal(document.getElementById('accommodationModal'));
     expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
     packingModal = new bootstrap.Modal(document.getElementById('packingModal'));
+    
+    // Initialize map on page load since overview tab is active by default
+    initializeMap();
 });
 
 function addActivity() {
@@ -1783,11 +1878,15 @@ async function editActivity(id) {
             document.getElementById('activityEndDate').value = endDate;
             document.getElementById('activityEndTime').value = endTime;
             document.getElementById('activityLocation').value = activity.location_name || '';
+            document.getElementById('activityCity').value = activity.city || '';
+            document.getElementById('activityCountry').value = activity.country || '';
+            document.getElementById('activityAddress').value = activity.address || '';
             document.getElementById('activityLatitude').value = activity.latitude || '';
             document.getElementById('activityLongitude').value = activity.longitude || '';
             document.getElementById('activityPriority').value = activity.priority || 'medium';
             document.getElementById('activityCost').value = activity.cost || '';
-            document.getElementById('activityDuration').value = activity.duration_minutes || '';
+            // Convert duration from minutes to hours for display
+            document.getElementById('activityDuration').value = activity.duration_minutes ? (activity.duration_minutes / 60) : '';
             document.getElementById('activityNotes').value = activity.notes || '';
             
             document.getElementById('activityModalLabel').textContent = 'Edit Activity';
@@ -1798,6 +1897,43 @@ async function editActivity(id) {
     } catch (error) {
         console.error('Error loading activity:', error);
         alert('Failed to load activity details');
+    }
+}
+
+// Helper function to add location to weather tracking system
+async function addLocationToWeather(city, country, latitude, longitude) {
+    if (!city || !country || !latitude || !longitude) {
+        return; // Skip if required data is missing
+    }
+    
+    try {
+        const response = await fetch('/weather/api/locations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                city_name: city,
+                country: country,
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude)
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`✓ Location ${city}, ${country} added to weather tracking`);
+            showToast(`📍 ${city}, ${country} added to weather tracking!`, 'info');
+        } else if (result.error && result.error.includes('already exists')) {
+            console.log(`✓ Location ${city}, ${country} already in weather tracking`);
+        } else {
+            console.warn(`Could not add ${city}, ${country} to weather tracking:`, result.error);
+        }
+    } catch (error) {
+        console.warn('Failed to add location to weather tracking:', error);
+        // Don't throw - this is a non-critical feature
     }
 }
 
@@ -1830,6 +1966,11 @@ async function saveActivity() {
         delete data.end_time;
     }
     
+    // Convert duration from hours to minutes
+    if (data.duration_minutes && data.duration_minutes !== '') {
+        data.duration_minutes = Math.round(parseFloat(data.duration_minutes) * 60);
+    }
+    
     // Remove empty fields
     Object.keys(data).forEach(key => {
         if (data[key] === '' || data[key] === null) {
@@ -1857,6 +1998,11 @@ async function saveActivity() {
         const result = await response.json();
         
         if (result.success) {
+            // Add location to weather tracking if city/country/coordinates provided
+            if (data.city && data.country && data.latitude && data.longitude) {
+                await addLocationToWeather(data.city, data.country, data.latitude, data.longitude);
+            }
+            
             // Hide modal first
             activityModal.hide();
             
@@ -1967,6 +2113,7 @@ async function editAccommodation(id) {
             document.getElementById('accommodationType').value = acc.accommodation_type || 'hotel';
             document.getElementById('accommodationAddress').value = acc.address || '';
             document.getElementById('accommodationCity').value = acc.city || '';
+            document.getElementById('accommodationCountry').value = acc.country || '';
             document.getElementById('accommodationLatitude').value = acc.latitude || '';
             document.getElementById('accommodationLongitude').value = acc.longitude || '';
             document.getElementById('accommodationPhone').value = acc.phone || '';
@@ -2033,6 +2180,11 @@ async function saveAccommodation() {
         const result = await response.json();
         
         if (result.success) {
+            // Add location to weather tracking if city/country/coordinates provided
+            if (data.city && data.country && data.latitude && data.longitude) {
+                await addLocationToWeather(data.city, data.country, data.latitude, data.longitude);
+            }
+            
             // Hide modal first
             accommodationModal.hide();
             
