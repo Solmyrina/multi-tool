@@ -1,0 +1,2607 @@
+{% extends "base.html" %}
+
+{% block title %}{{ trip.name }} - Travel Planner{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet.js for Maps -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Custom Timeline Styles -->
+<style>
+    #tripMap {
+        height: 400px;
+        width: 100%;
+        border-radius: 8px;
+    }
+    
+    /* Custom Timeline Styles */
+    .timeline-container {
+        overflow-x: auto;
+        padding: 20px 0;
+        width: 100%;
+    }
+    
+    .timeline-header {
+        display: flex;
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        width: 100%;
+    }
+    
+    .timeline-date {
+        flex: 1;
+        min-width: 80px;
+        padding: 10px;
+        text-align: center;
+        border-right: 1px solid #dee2e6;
+        font-weight: bold;
+    }
+    
+    .timeline-row {
+        display: flex;
+        border-bottom: 1px solid #e9ecef;
+        min-height: 50px;
+        align-items: center;
+        position: relative;
+        width: 100%;
+    }
+    
+    .timeline-label {
+        width: 200px;
+        min-width: 200px;
+        padding: 10px;
+        font-weight: 500;
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 5;
+        border-right: 2px solid #dee2e6;
+    }
+    
+    .timeline-grid {
+        flex: 1;
+        position: relative;
+        display: flex;
+    }
+    
+    .timeline-cell {
+        flex: 1;
+        min-width: 80px;
+        border-right: 1px solid #e9ecef;
+        position: relative;
+    }
+    
+    .timeline-block {
+        position: absolute;
+        height: 35px;
+        border-radius: 4px;
+        padding: 5px 10px;
+        font-size: 12px;
+        color: white;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+    
+    .timeline-block:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        z-index: 100;
+    }
+    
+    .timeline-block-activity {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .timeline-block-accommodation {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        opacity: 0.8;
+        cursor: pointer !important; /* Click to edit, but not draggable */
+    }
+    
+    .timeline-block-accommodation:hover {
+        cursor: pointer !important;
+    }
+    
+    .timeline-block-sightseeing {
+        background: #0d6efd;
+    }
+    
+    .timeline-block-dining {
+        background: #198754;
+    }
+    
+    .timeline-block-transport {
+        background: #ffc107;
+        color: #000;
+    }
+    
+    .timeline-block-entertainment {
+        background: #0dcaf0;
+        color: #000;
+    }
+    
+    /* Timeline tooltip */
+    .timeline-tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.4;
+        pointer-events: none;
+        z-index: 1000;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        white-space: normal;
+    }
+    
+    .timeline-tooltip::before {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border: 5px solid transparent;
+        border-top-color: rgba(0, 0, 0, 0.9);
+    }
+    
+    /* Map styles */
+    .leaflet-popup-content {
+        margin: 8px;
+        min-width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Trip Header -->
+    <div class="sticky-header border-bottom pb-3 mb-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="{{ url_for('travel_list') }}">My Trips</a></li>
+                        <li class="breadcrumb-item active">{{ trip.name }}</li>
+                    </ol>
+                </nav>
+                <h1>{{ trip.name }}</h1>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-map-marker-alt"></i> 
+                    {{ trip.destination_city }}{% if trip.destination_country %}, {{ trip.destination_country }}{% endif %}
+                    <span class="ms-3">
+                        <i class="fas fa-calendar"></i>
+                        {{ trip.start_date|format_date }} - {{ trip.end_date|format_date }}
+                    </span>
+                </p>
+            </div>
+            <div class="btn-group">
+                <a href="{{ url_for('export_calendar', trip_id=trip.id) }}" 
+                   class="btn btn-success"
+                   download="{{ trip.name }}.ics"
+                   title="Add all activities to your calendar">
+                    <i class="fas fa-calendar-plus"></i>
+                    Add to Calendar
+                </a>
+                <button class="btn btn-outline-primary" onclick="showDailyView()">
+                    <i class="fas fa-calendar-day"></i> Daily View
+                </button>
+                <a href="{{ url_for('trip_edit', trip_id=trip.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-edit"></i> Edit Trip
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="tripTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
+                <i class="fas fa-th-large"></i> Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button">
+                <i class="fas fa-chart-gantt"></i> Timeline
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="activities-tab" data-bs-toggle="tab" data-bs-target="#activities" type="button">
+                <i class="fas fa-map-marked-alt"></i> Activities <span class="badge bg-secondary">{{ trip.activity_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="accommodations-tab" data-bs-toggle="tab" data-bs-target="#accommodations" type="button">
+                <i class="fas fa-hotel"></i> Accommodations <span class="badge bg-secondary">{{ trip.accommodation_count }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget" type="button">
+                <i class="fas fa-wallet"></i> Budget
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="packing-tab" data-bs-toggle="tab" data-bs-target="#packing" type="button">
+                <i class="fas fa-suitcase"></i> Packing List
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="tripTabsContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="row">
+                <!-- Trip Summary Card -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Trip Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if trip.description %}
+                            <p class="mb-4">{{ trip.description }}</p>
+                            {% endif %}
+
+                            <div class="row text-center mb-4">
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="stat-card">
+                                        <i class="fas fa-calendar-day fa-2x text-primary mb-2"></i>
+                                        <h3 class="mb-0">{{ trip.duration_days }}</h3>
+                                        <small class="text-muted">Days</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="stat-card">
+                                        <i class="fas fa-map-marked-alt fa-2x text-success mb-2"></i>
+                                        <h3 class="mb-0">{{ trip.activity_count }}</h3>
+                                        <small class="text-muted">Activities</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="stat-card">
+                                        <i class="fas fa-hotel fa-2x text-info mb-2"></i>
+                                        <h3 class="mb-0">{{ trip.accommodation_count }}</h3>
+                                        <small class="text-muted">Accommodations</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="stat-card">
+                                        <i class="fas fa-route fa-2x text-warning mb-2"></i>
+                                        <h3 class="mb-0">{{ trip.route_count }}</h3>
+                                        <small class="text-muted">Routes</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Map Placeholder -->
+                            <div id="tripMap" style="height: 400px; background: #f0f0f0; border-radius: 8px; position: relative;">
+                                <div class="position-absolute top-50 start-50 translate-middle text-center">
+                                    <i class="fas fa-map fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">Map will load here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Weather Widget -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-cloud-sun"></i> Weather Forecast</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="weatherWidget" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="addActivity()">
+                                    <i class="fas fa-plus"></i> Add Activity
+                                </button>
+                                <button class="btn btn-outline-success" onclick="addAccommodation()">
+                                    <i class="fas fa-plus"></i> Add Accommodation
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="addExpense()">
+                                    <i class="fas fa-plus"></i> Add Expense
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Summary -->
+                    {% if trip.budget_total %}
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Budget Overview</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Spent</span>
+                                <strong>{{ trip.total_spent|default(0) }} {{ trip.budget_currency }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>Budget</span>
+                                <strong>{{ trip.budget_total }} {{ trip.budget_currency }}</strong>
+                            </div>
+                            
+                            {% set budget_percent = ((trip.total_spent|default(0) / trip.budget_total) * 100)|int %}
+                            <div class="progress mb-2" style="height: 20px;">
+                                <div class="progress-bar bg-{{ 'danger' if budget_percent > 100 else 'warning' if budget_percent > 80 else 'success' }}" 
+                                     role="progressbar" 
+                                     style="width: {{ [budget_percent, 100]|min }}%">
+                                    {{ budget_percent }}%
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Remaining</span>
+                                <strong class="text-{{ 'danger' if budget_percent > 100 else 'success' }}">
+                                    {{ trip.budget_total - trip.total_spent|default(0) }} {{ trip.budget_currency }}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Tab (Gantt Chart) -->
+        <div class="tab-pane fade" id="timeline" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-gantt"></i> Trip Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div id="ganttChart" style="min-height: 500px;">
+                        <!-- Gantt chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activities Tab -->
+        <div class="tab-pane fade" id="activities" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Activities</h4>
+                <button class="btn btn-primary" onclick="addActivity()">
+                    <i class="fas fa-plus"></i> Add Activity
+                </button>
+            </div>
+
+            <div id="activitiesList">
+                <!-- Activities will be loaded here -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading activities...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accommodations Tab -->
+        <div class="tab-pane fade" id="accommodations" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Accommodations</h4>
+                <button class="btn btn-success" onclick="addAccommodation()">
+                    <i class="fas fa-plus"></i> Add Accommodation
+                </button>
+            </div>
+
+            <div id="accommodationsList">
+                <!-- Accommodations will be loaded here -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading accommodations...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Tab -->
+        <div class="tab-pane fade" id="budget" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Budget & Expenses</h4>
+                <button class="btn btn-warning" onclick="addExpense()">
+                    <i class="fas fa-plus"></i> Add Expense
+                </button>
+            </div>
+
+            <!-- Budget Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">Total Budget</h6>
+                            <h3 id="budgetTotal">-</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">Planned Costs</h6>
+                            <h4 class="text-primary" id="plannedCosts">-</h4>
+                            <small class="text-muted">Activities + Accommodations</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">Other Expenses</h6>
+                            <h4 class="text-warning" id="otherExpenses">-</h4>
+                            <small class="text-muted">Manual expenses</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">Remaining</h6>
+                            <h3 class="text-success" id="budgetRemaining">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Breakdown -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Planned Costs Breakdown</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="fas fa-hotel text-success"></i> Accommodations</span>
+                                    <strong id="accommodationCosts">-</strong>
+                                </div>
+                                <div class="progress mt-1" style="height: 8px;">
+                                    <div id="accommodationProgress" class="progress-bar bg-success" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="fas fa-calendar-alt text-primary"></i> Activities</span>
+                                    <strong id="activityCosts">-</strong>
+                                </div>
+                                <div class="progress mt-1" style="height: 8px;">
+                                    <div id="activityProgress" class="progress-bar bg-primary" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-wallet"></i> Expense Categories</h6>
+                        </div>
+                        <div class="card-body" id="expenseCategorySummary">
+                            <p class="text-muted text-center">No expenses yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expenses List -->
+            <div id="expensesList">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Loading expenses...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Packing List Tab -->
+        <div class="tab-pane fade" id="packing" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Packing List</h4>
+                <button class="btn btn-primary" onclick="addPackingItem()">
+                    <i class="fas fa-plus"></i> Add Item
+                </button>
+            </div>
+
+            <!-- Packing Progress -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Packing Progress</h6>
+                        <span id="packingProgress">0 / 0 items packed</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div id="packingProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%">
+                            <span id="packingProgressText">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Packing List by Category -->
+            <div id="packingList">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading packing list...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+                        <span class="visually-hidden">Loading packing list...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Modal -->
+<div class="modal fade" id="activityModal" tabindex="-1" aria-labelledby="activityModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="activityModalLabel">Add Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="activityForm">
+                    <input type="hidden" id="activityId" name="id">
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="activityName" class="form-label">Activity Name *</label>
+                            <input type="text" class="form-control" id="activityName" name="name" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="activityCategory" class="form-label">Category *</label>
+                            <select class="form-select" id="activityCategory" name="category" required>
+                                <option value="sightseeing">Sightseeing</option>
+                                <option value="dining">Dining</option>
+                                <option value="transport">Transport</option>
+                                <option value="entertainment">Entertainment</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="activityDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="activityDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="activityStartDate" class="form-label">Start Date *</label>
+                            <input type="date" class="form-control" id="activityStartDate" name="start_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="activityStartTime" class="form-label">Start Time</label>
+                            <input type="time" class="form-control" id="activityStartTime" name="start_time">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="activityEndDate" class="form-label">End Date *</label>
+                            <input type="date" class="form-control" id="activityEndDate" name="end_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="activityEndTime" class="form-label">End Time</label>
+                            <input type="time" class="form-control" id="activityEndTime" name="end_time">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="activityLocation" class="form-label">Location</label>
+                            <input type="text" class="form-control" id="activityLocation" name="location" placeholder="Address or place name">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="activityLatitude" class="form-label">Latitude</label>
+                            <input type="number" step="0.000001" class="form-control" id="activityLatitude" name="latitude" placeholder="51.5074">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="activityLongitude" class="form-label">Longitude</label>
+                            <input type="number" step="0.000001" class="form-control" id="activityLongitude" name="longitude" placeholder="-0.1278">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="activityPriority" class="form-label">Priority</label>
+                            <select class="form-select" id="activityPriority" name="priority">
+                                <option value="optional">Optional</option>
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="must_see">Must See</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="activityCost" class="form-label">Estimated Cost</label>
+                            <input type="number" step="0.01" class="form-control" id="activityCost" name="estimated_cost" placeholder="0.00">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="activityDuration" class="form-label">Duration (hours)</label>
+                            <input type="number" step="0.5" class="form-control" id="activityDuration" name="estimated_duration" placeholder="2.0">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="activityNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="activityNotes" name="notes" rows="2" placeholder="Booking info, tips, etc."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="deleteActivityBtn" onclick="deleteActivityConfirm()" style="display: none;">Delete</button>
+                <button type="button" class="btn btn-primary" onclick="saveActivity()">Save Activity</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accommodation Modal -->
+<div class="modal fade" id="accommodationModal" tabindex="-1" aria-labelledby="accommodationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="accommodationModalLabel">Add Accommodation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="accommodationForm">
+                    <input type="hidden" id="accommodationId" name="id">
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="accommodationName" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="accommodationName" name="name" required placeholder="Hotel, Airbnb, etc.">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="accommodationType" class="form-label">Type *</label>
+                            <select class="form-select" id="accommodationType" name="accommodation_type" required>
+                                <option value="hotel">Hotel</option>
+                                <option value="hostel">Hostel</option>
+                                <option value="airbnb">Airbnb</option>
+                                <option value="resort">Resort</option>
+                                <option value="guesthouse">Guesthouse</option>
+                                <option value="apartment">Apartment</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="accommodationAddress" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="accommodationAddress" name="address">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="accommodationCity" class="form-label">City</label>
+                            <input type="text" class="form-control" id="accommodationCity" name="city">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationLatitude" class="form-label">Latitude</label>
+                            <input type="number" step="0.000001" class="form-control" id="accommodationLatitude" name="latitude">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationLongitude" class="form-label">Longitude</label>
+                            <input type="number" step="0.000001" class="form-control" id="accommodationLongitude" name="longitude">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationPhone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="accommodationPhone" name="phone">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="accommodationWebsite" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="accommodationWebsite" name="website">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCheckIn" class="form-label">Check-in Date *</label>
+                            <input type="date" class="form-control" id="accommodationCheckIn" name="check_in_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCheckInTime" class="form-label">Check-in Time</label>
+                            <input type="time" class="form-control" id="accommodationCheckInTime" name="check_in_time" value="15:00">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCheckOut" class="form-label">Check-out Date *</label>
+                            <input type="date" class="form-control" id="accommodationCheckOut" name="check_out_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCheckOutTime" class="form-label">Check-out Time</label>
+                            <input type="time" class="form-control" id="accommodationCheckOutTime" name="check_out_time" value="11:00">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCost" class="form-label">Total Cost</label>
+                            <input type="number" step="0.01" class="form-control" id="accommodationCost" name="total_cost" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationCurrency" class="form-label">Currency</label>
+                            <select class="form-select" id="accommodationCurrency" name="currency">
+                                <option value="EUR">EUR (€)</option>
+                                <option value="USD" selected>USD ($)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="JPY">JPY (¥)</option>
+                                <option value="AUD">AUD (A$)</option>
+                                <option value="CAD">CAD (C$)</option>
+                                <option value="CHF">CHF (Fr)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationConfirmation" class="form-label">Confirmation Number</label>
+                            <input type="text" class="form-control" id="accommodationConfirmation" name="confirmation_number">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="accommodationStatus" class="form-label">Status</label>
+                            <select class="form-select" id="accommodationStatus" name="booking_status">
+                                <option value="planned">Planned</option>
+                                <option value="reserved">Reserved</option>
+                                <option value="confirmed" selected>Confirmed</option>
+                                <option value="checked_in">Checked In</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="accommodationNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="accommodationNotes" name="notes" rows="3" placeholder="Amenities, parking, etc."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="deleteAccommodationBtn" onclick="deleteAccommodationConfirm()" style="display: none;">Delete</button>
+                <button type="button" class="btn btn-success" onclick="saveAccommodation()">Save Accommodation</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expenseModalLabel">Add Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="expenseForm">
+                    <input type="hidden" id="expenseId" name="id">
+                    
+                    <div class="mb-3">
+                        <label for="expenseDescription" class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="expenseDescription" name="description" required placeholder="e.g., Taxi to airport">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expenseAmount" class="form-label">Amount *</label>
+                            <input type="number" step="0.01" class="form-control" id="expenseAmount" name="amount" required placeholder="0.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="expenseCurrency" class="form-label">Currency *</label>
+                            <input type="text" class="form-control" id="expenseCurrency" name="currency" value="{{ trip.budget_currency }}" required maxlength="3" placeholder="EUR">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expenseDate" class="form-label">Date *</label>
+                            <input type="date" class="form-control" id="expenseDate" name="expense_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="expenseCategory" class="form-label">Category</label>
+                            <select class="form-select" id="expenseCategory" name="category">
+                                <option value="">Select category</option>
+                                <option value="accommodation">Accommodation</option>
+                                <option value="transport">Transport</option>
+                                <option value="food">Food & Dining</option>
+                                <option value="activities">Activities</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="expenseNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="expenseNotes" name="notes" rows="2" placeholder="Additional details"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="deleteExpenseBtn" onclick="confirmDeleteExpense()" style="display: none;">Delete</button>
+                <button type="button" class="btn btn-warning" onclick="saveExpense()">Save Expense</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Packing Item Modal -->
+<div class="modal fade" id="packingModal" tabindex="-1" aria-labelledby="packingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="packingModalLabel">Add Packing Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="packingForm">
+                    <input type="hidden" id="packingItemId" name="id">
+                    
+                    <div class="mb-3">
+                        <label for="packingItemName" class="form-label">Item Name *</label>
+                        <input type="text" class="form-control" id="packingItemName" name="item_name" required placeholder="e.g., Passport, Sunscreen">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="packingCategory" class="form-label">Category *</label>
+                            <select class="form-select" id="packingCategory" name="category" required>
+                                <option value="">Select category</option>
+                                <option value="documents">Documents</option>
+                                <option value="clothing">Clothing</option>
+                                <option value="toiletries">Toiletries</option>
+                                <option value="electronics">Electronics</option>
+                                <option value="medication">Medication</option>
+                                <option value="general">General</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="packingQuantity" class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="packingQuantity" name="quantity" value="1" min="1">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="packingNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="packingNotes" name="notes" rows="2" placeholder="Size, color, or other details"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePackingItem()">Save Item</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .stat-card i {
+        display: block;
+    }
+    
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const tripId = {{ trip.id }};
+const tripCity = "{{ trip.destination_city or '' }}";
+const tripCountry = "{{ trip.destination_country or '' }}";
+const tripStartDate = "{{ trip.start_date }}";
+const tripEndDate = "{{ trip.end_date }}";
+
+// Load weather widget on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadWeatherWidget();
+});
+
+// Load weather widget
+async function loadWeatherWidget() {
+    const weatherWidget = document.getElementById('weatherWidget');
+    
+    if (!tripCity || !tripCountry) {
+        weatherWidget.innerHTML = `
+            <p class="text-muted"><i class="fas fa-info-circle"></i> No destination set</p>
+        `;
+        return;
+    }
+    
+    try {
+        // Search for city to get weather data
+        const response = await fetch(`/weather/api/search-cities?q=${encodeURIComponent(tripCity + ', ' + tripCountry)}`);
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const cityData = data[0];
+            displayWeather(cityData);
+        } else {
+            weatherWidget.innerHTML = `
+                <p class="text-muted"><i class="fas fa-cloud"></i> Weather data not available</p>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading weather:', error);
+        weatherWidget.innerHTML = `
+            <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Failed to load weather</p>
+        `;
+    }
+}
+
+function displayWeather(cityData) {
+    const weatherWidget = document.getElementById('weatherWidget');
+    
+    // Calculate days until trip
+    const today = new Date();
+    const startDate = new Date(tripStartDate);
+    const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+    
+    const temp = cityData.temp || cityData.temperature || '--';
+    const description = cityData.description || cityData.weather || 'N/A';
+    const humidity = cityData.humidity || '--';
+    const windSpeed = cityData.wind_speed || '--';
+    
+    let weatherIcon = 'fa-cloud';
+    if (description.toLowerCase().includes('sun') || description.toLowerCase().includes('clear')) {
+        weatherIcon = 'fa-sun';
+    } else if (description.toLowerCase().includes('rain')) {
+        weatherIcon = 'fa-cloud-rain';
+    } else if (description.toLowerCase().includes('snow')) {
+        weatherIcon = 'fa-snowflake';
+    } else if (description.toLowerCase().includes('cloud')) {
+        weatherIcon = 'fa-cloud';
+    }
+    
+    weatherWidget.innerHTML = `
+        <div class="text-center mb-3">
+            <i class="fas ${weatherIcon} fa-3x text-primary mb-2"></i>
+            <h3 class="mb-0">${temp}°C</h3>
+            <p class="text-muted mb-0">${description}</p>
+        </div>
+        <div class="row text-center">
+            <div class="col-6">
+                <small class="text-muted">Humidity</small>
+                <p class="mb-0"><strong>${humidity}%</strong></p>
+            </div>
+            <div class="col-6">
+                <small class="text-muted">Wind</small>
+                <p class="mb-0"><strong>${windSpeed} m/s</strong></p>
+            </div>
+        </div>
+        ${daysUntil > 0 ? `
+        <div class="alert alert-info mt-3 mb-0">
+            <small><i class="fas fa-calendar"></i> ${daysUntil} day${daysUntil === 1 ? '' : 's'} until your trip</small>
+        </div>
+        ` : ''}
+    `;
+}
+
+// Load activities
+async function loadActivities() {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/activities`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            renderActivities(data.activities);
+        }
+    } catch (error) {
+        console.error('Error loading activities:', error);
+    }
+}
+
+function renderActivities(activities) {
+    const container = document.getElementById('activitiesList');
+    
+    if (activities.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-map-marked-alt fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No activities yet</h5>
+                <button class="btn btn-primary mt-3" onclick="addActivity()">
+                    <i class="fas fa-plus"></i> Add First Activity
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = activities.map(activity => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div class="flex-grow-1">
+                        <h5>${activity.name}</h5>
+                        <p class="text-muted mb-2">${activity.description || ''}</p>
+                        <div class="mb-2">
+                            <span class="badge bg-${getCategoryColor(activity.category)}">${activity.category}</span>
+                            <span class="badge bg-${getPriorityColor(activity.priority)}">${activity.priority}</span>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${new Date(activity.start_datetime).toLocaleString()}
+                            ${activity.location_name ? `<br><i class="fas fa-map-marker-alt"></i> ${activity.location_name}` : ''}
+                        </small>
+                    </div>
+                    <div class="btn-group-vertical">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editActivity(${activity.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteActivity(${activity.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getCategoryColor(category) {
+    const colors = {
+        'sightseeing': 'primary',
+        'dining': 'success',
+        'transport': 'warning',
+        'entertainment': 'info',
+        'shopping': 'secondary',
+        'other': 'dark'
+    };
+    return colors[category] || 'secondary';
+}
+
+function getPriorityColor(priority) {
+    const colors = {
+        'must_see': 'danger',
+        'high': 'warning',
+        'medium': 'info',
+        'low': 'secondary',
+        'optional': 'light'
+    };
+    return colors[priority] || 'secondary';
+}
+
+// Load accommodations
+async function loadAccommodations() {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/accommodations`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            renderAccommodations(data.accommodations);
+        }
+    } catch (error) {
+        console.error('Error loading accommodations:', error);
+    }
+}
+
+function renderAccommodations(accommodations) {
+    const container = document.getElementById('accommodationsList');
+    
+    if (accommodations.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-hotel fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No accommodations yet</h5>
+                <button class="btn btn-success mt-3" onclick="addAccommodation()">
+                    <i class="fas fa-plus"></i> Add First Accommodation
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = accommodations.map(acc => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h5><i class="fas fa-hotel"></i> ${acc.name}</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editAccommodation(${acc.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </div>
+                <p class="mb-2">
+                    <strong>Check-in:</strong> ${acc.check_in_date} ${acc.check_in_time}<br>
+                    <strong>Check-out:</strong> ${acc.check_out_date} ${acc.check_out_time}
+                </p>
+                ${acc.address ? `<p class="text-muted"><i class="fas fa-map-marker-alt"></i> ${acc.address}, ${acc.city}</p>` : ''}
+                ${acc.total_cost ? `<p><strong>Cost:</strong> ${acc.total_cost} ${acc.currency}</p>` : ''}
+                ${acc.confirmation_number ? `<p><small class="text-muted">Confirmation: ${acc.confirmation_number}</small></p>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Tab event listeners
+document.getElementById('activities-tab').addEventListener('shown.bs.tab', loadActivities);
+document.getElementById('accommodations-tab').addEventListener('shown.bs.tab', loadAccommodations);
+document.getElementById('timeline-tab').addEventListener('shown.bs.tab', loadGanttChart);
+document.getElementById('overview-tab').addEventListener('shown.bs.tab', initializeMap);
+document.getElementById('budget-tab').addEventListener('shown.bs.tab', loadBudget);
+document.getElementById('packing-tab').addEventListener('shown.bs.tab', loadPackingList);
+
+// Initialize Gantt Chart
+let ganttInstance = null;
+
+async function loadGanttChart() {
+    if (ganttInstance) return; // Already loaded
+    
+    try {
+        // Load both activities and accommodations
+        const [activitiesResponse, accommodationsResponse] = await Promise.all([
+            fetch(`/api/travel/trips/${tripId}/activities`, { credentials: 'include' }),
+            fetch(`/api/travel/trips/${tripId}/accommodations`, { credentials: 'include' })
+        ]);
+        
+        const activitiesData = await activitiesResponse.json();
+        const accommodationsData = await accommodationsResponse.json();
+        
+        const activities = activitiesData.success ? activitiesData.activities : [];
+        const accommodations = accommodationsData.success ? accommodationsData.accommodations : [];
+        
+        if (activities.length > 0 || accommodations.length > 0) {
+            renderGanttChart(activities, accommodations);
+        } else {
+            document.getElementById('ganttChart').innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No activities or accommodations yet</h5>
+                    <p class="text-muted">Add activities and accommodations to see them in the timeline</p>
+                    <button class="btn btn-primary mt-3" onclick="addActivity()">
+                        <i class="fas fa-plus"></i> Add Activity
+                    </button>
+                    <button class="btn btn-success mt-3 ms-2" onclick="addAccommodation()">
+                        <i class="fas fa-hotel"></i> Add Accommodation
+                    </button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading gantt chart:', error);
+        document.getElementById('ganttChart').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> Error loading timeline
+            </div>
+        `;
+    }
+}
+
+function renderGanttChart(activities, accommodations) {
+    // Calculate date range: trip dates ± 12 hours
+    let startDate = new Date(tripStartDate);
+    startDate.setHours(0, 0, 0, 0); // Start at midnight of first day
+    
+    let endDate = new Date(tripEndDate);
+    endDate.setHours(23, 59, 59, 999); // End at end of last day
+    
+    // Generate dates array for timeline (one entry per day)
+    const dates = [];
+    let current = new Date(startDate);
+    while (current <= endDate) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+    }
+    
+    // Combine all timeline items
+    const timelineItems = [];
+    
+    // Add activities
+    activities.forEach(activity => {
+        timelineItems.push({
+            type: 'activity',
+            id: activity.id,
+            name: activity.name,
+            start: new Date(activity.start_datetime),
+            end: new Date(activity.end_datetime),
+            category: activity.category,
+            data: activity
+        });
+    });
+    
+    // Add accommodations as full stay blocks (check-in to check-out)
+    accommodations.forEach(accommodation => {
+        const checkIn = new Date(accommodation.check_in_date);
+        const checkOut = new Date(accommodation.check_out_date);
+        
+        // Set check-in time if available, otherwise use 14:00 (standard check-in)
+        if (accommodation.check_in_time) {
+            const [hours, minutes] = accommodation.check_in_time.split(':');
+            checkIn.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        } else {
+            checkIn.setHours(14, 0, 0, 0);
+        }
+        
+        // Set check-out time if available, otherwise use 11:00 (standard check-out)
+        if (accommodation.check_out_time) {
+            const [hours, minutes] = accommodation.check_out_time.split(':');
+            checkOut.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        } else {
+            checkOut.setHours(11, 0, 0, 0);
+        }
+        
+        timelineItems.push({
+            type: 'accommodation',
+            id: accommodation.id,
+            name: '🏨 ' + accommodation.name,
+            start: checkIn,
+            end: checkOut,
+            data: accommodation
+        });
+    });
+    
+    // Build custom timeline HTML - use full width dynamically
+    const ganttContainer = document.getElementById('ganttChart');
+    const containerWidth = ganttContainer.offsetWidth;
+    const labelWidth = 200; // Fixed label column width
+    const availableWidth = containerWidth - labelWidth - 40; // Subtract label and padding
+    const cellWidth = availableWidth / dates.length; // Divide remaining space equally among dates
+    const totalWidth = dates.length * cellWidth;
+    const totalMs = endDate - startDate;
+
+    let html = '<div class="timeline-container">';
+
+    // Header with dates (flexible width cells)
+    html += '<div class="timeline-header">';
+    html += '<div class="timeline-label">Item</div>';
+    html += '<div style="display: flex; flex: 1;">';
+    dates.forEach(date => {
+        html += `<div class="timeline-date" style="flex: 1; min-width: ${cellWidth}px;">${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>`;
+    });
+    html += '</div></div>';
+
+    // Rows for each item
+    timelineItems.forEach(item => {
+        // Calculate position and size in pixels to avoid % rounding mismatches
+        const leftPx = ((item.start - startDate) / totalMs) * totalWidth;
+        const widthPx = ((item.end - item.start) / totalMs) * totalWidth;
+
+        const clampedLeft = Math.max(0, Math.min(totalWidth, leftPx));
+        const clampedWidth = Math.max(4, Math.min(totalWidth - clampedLeft, widthPx));
+
+        const categoryClass = item.type === 'accommodation' ? 'accommodation' : 
+                             item.category ? item.category.toLowerCase() : 'activity';
+
+        html += '<div class="timeline-row">';
+        html += `<div class="timeline-label">${item.name}</div>`;
+        // Grid uses flex to fill available width
+        html += '<div class="timeline-grid" style="position: relative;">';
+
+        // Add date cells for visual grid (flexible width)
+        dates.forEach(() => {
+            html += `<div class="timeline-cell" style="flex: 1; min-width: ${cellWidth}px;"></div>`;
+        });
+
+        // Add the timeline block using pixel coordinates with tooltip data
+        const tooltipData = JSON.stringify(item.data).replace(/"/g, '&quot;');
+        html += `<div class="timeline-block timeline-block-${categoryClass}" 
+                      style="left: ${clampedLeft}px; width: ${clampedWidth}px;"
+                      data-type="${item.type}" 
+                      data-id="${item.id}"
+                      data-item='${tooltipData}'
+                      onmouseenter="showTimelineTooltip(event, this)"
+                      onmouseleave="hideTimelineTooltip()"
+                      onclick="handle${item.type === 'activity' ? 'Activity' : 'Accommodation'}Click(${item.id})"
+                      title="">
+                 </div>`;
+
+        html += '</div></div>';
+    });
+
+    html += '</div>';
+
+    document.getElementById('ganttChart').innerHTML = html;
+    
+    // Enable drag-and-drop for activity blocks (not accommodations)
+    enableTimelineDrag(startDate, totalWidth, totalMs);
+}
+
+// Timeline tooltip functionality
+let tooltipElement = null;
+
+function showTimelineTooltip(event, element) {
+    // Don't show tooltip while dragging
+    if (dragState && dragState.hasMoved) return;
+    
+    const type = element.dataset.type;
+    const itemData = JSON.parse(element.dataset.item);
+    
+    // Create tooltip content based on type
+    let content = '';
+    
+    if (type === 'activity') {
+        const startDate = new Date(itemData.start_datetime);
+        const endDate = new Date(itemData.end_datetime);
+        const duration = itemData.duration_minutes ? `${itemData.duration_minutes} min` : 
+                        Math.round((endDate - startDate) / 60000) + ' min';
+        
+        content = `
+            <div><strong>${itemData.name}</strong></div>
+            <div style="margin-top: 5px;">
+                📅 ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}<br>
+                🕐 ${startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - 
+                    ${endDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    (${duration})
+            </div>
+            ${itemData.location_name ? `<div>📍 ${itemData.location_name}</div>` : ''}
+            ${itemData.category ? `<div>🏷️ ${itemData.category}</div>` : ''}
+            ${itemData.cost ? `<div>💰 ${itemData.cost} ${itemData.currency || ''}</div>` : ''}
+            ${itemData.notes ? `<div style="margin-top: 5px; font-size: 11px; opacity: 0.9;">${itemData.notes.substring(0, 100)}${itemData.notes.length > 100 ? '...' : ''}</div>` : ''}
+        `;
+    } else if (type === 'accommodation') {
+        const checkIn = new Date(itemData.check_in_date);
+        const checkOut = new Date(itemData.check_out_date);
+        const nights = Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+        
+        content = `
+            <div><strong>🏨 ${itemData.name}</strong></div>
+            <div style="margin-top: 5px;">
+                ✅ Check-in: ${checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                    ${itemData.check_in_time || '14:00'}<br>
+                ✅ Check-out: ${checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                    ${itemData.check_out_time || '11:00'}
+                    (${nights} night${nights !== 1 ? 's' : ''})
+            </div>
+            ${itemData.address ? `<div>📍 ${itemData.address}, ${itemData.city || ''}</div>` : ''}
+            ${itemData.total_cost ? `<div>💰 ${itemData.total_cost} ${itemData.currency || ''}</div>` : ''}
+            ${itemData.confirmation_number ? `<div>🎫 ${itemData.confirmation_number}</div>` : ''}
+        `;
+    }
+    
+    // Create or update tooltip
+    if (!tooltipElement) {
+        tooltipElement = document.createElement('div');
+        tooltipElement.className = 'timeline-tooltip';
+        document.body.appendChild(tooltipElement);
+    }
+    
+    tooltipElement.innerHTML = content;
+    tooltipElement.style.display = 'block';
+    
+    // Position tooltip above the element
+    const rect = element.getBoundingClientRect();
+    const tooltipRect = tooltipElement.getBoundingClientRect();
+    
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.top - tooltipRect.height - 10;
+    
+    // Keep tooltip on screen
+    if (left < 10) left = 10;
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+        left = window.innerWidth - tooltipRect.width - 10;
+    }
+    if (top < 10) {
+        top = rect.bottom + 10; // Show below if not enough space above
+    }
+    
+    tooltipElement.style.left = left + 'px';
+    tooltipElement.style.top = top + 'px';
+}
+
+function hideTimelineTooltip() {
+    if (tooltipElement) {
+        tooltipElement.style.display = 'none';
+    }
+}
+
+// Timeline drag-and-drop functionality
+let dragState = null;
+
+function enableTimelineDrag(timelineStart, totalWidth, totalMs) {
+    const activityBlocks = document.querySelectorAll('.timeline-block-sightseeing, .timeline-block-dining, .timeline-block-transport, .timeline-block-entertainment, .timeline-block-shopping, .timeline-block-activity');
+    
+    activityBlocks.forEach(block => {
+        block.style.cursor = 'move';
+        
+        block.addEventListener('mousedown', (e) => {
+            // Only drag with left mouse button, not on click for edit
+            if (e.button !== 0) return;
+            
+            const activityId = parseInt(block.dataset.id);
+            const rect = block.getBoundingClientRect();
+            const gridRect = block.parentElement.getBoundingClientRect();
+            
+            dragState = {
+                activityId: activityId,
+                block: block,
+                startX: e.clientX,
+                startLeft: parseFloat(block.style.left) || 0,
+                gridLeft: gridRect.left,
+                totalWidth: totalWidth,
+                totalMs: totalMs,
+                timelineStart: timelineStart,
+                hasMoved: false
+            };
+            
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+}
+
+function onDragMove(e) {
+    if (!dragState) return;
+    
+    const deltaX = e.clientX - dragState.startX;
+    if (Math.abs(deltaX) > 3) {
+        dragState.hasMoved = true;
+        hideTimelineTooltip(); // Hide tooltip when dragging starts
+    }
+    
+    if (dragState.hasMoved) {
+        const newLeft = Math.max(0, Math.min(dragState.totalWidth - parseFloat(dragState.block.style.width), dragState.startLeft + deltaX));
+        dragState.block.style.left = newLeft + 'px';
+        dragState.block.style.opacity = '0.7';
+    }
+}
+
+async function onDragEnd(e) {
+    if (!dragState) return;
+    
+    // If it was just a click (no movement), treat as click to edit
+    if (!dragState.hasMoved) {
+        dragState.block.style.opacity = '';
+        dragState = null;
+        return; // Let the onclick handler fire
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const block = dragState.block;
+    const activityId = dragState.activityId;
+    
+    // Calculate new dates based on pixel position
+    const newLeftPx = parseFloat(block.style.left);
+    const widthPx = parseFloat(block.style.width);
+    
+    const startMs = dragState.timelineStart.getTime() + (newLeftPx / dragState.totalWidth) * dragState.totalMs;
+    const endMs = startMs + (widthPx / dragState.totalWidth) * dragState.totalMs;
+    
+    const newStartDate = new Date(startMs);
+    const newEndDate = new Date(endMs);
+    
+    // Update via API
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/activities/${activityId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                start_datetime: newStartDate.toISOString(),
+                end_datetime: newEndDate.toISOString()
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('Activity rescheduled!', 'success');
+            block.style.opacity = '';
+            
+            // Reload timeline after short delay
+            setTimeout(() => {
+                ganttInstance = null;
+                loadGanttChart();
+            }, 300);
+        } else {
+            showToast('Failed to reschedule activity', 'error');
+            block.style.opacity = '';
+        }
+    } catch (error) {
+        console.error('Error updating activity:', error);
+        showToast('Failed to reschedule activity', 'error');
+        block.style.opacity = '';
+    }
+    
+    dragState = null;
+}
+
+// Helper functions for timeline clicks
+function handleActivityClick(activityId) {
+    editActivity(activityId);
+}
+
+function handleAccommodationClick(accommodationId) {
+    editAccommodation(accommodationId);
+}
+
+
+async function updateActivityDates(activityId, startDate, endDate) {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/activities/${activityId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                start_datetime: startDate.toISOString(),
+                end_datetime: endDate.toISOString()
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            console.log('Activity dates updated successfully');
+            showToast('Activity dates updated!', 'success');
+        }
+    } catch (error) {
+        console.error('Error updating activity dates:', error);
+        alert('Failed to update activity dates');
+    }
+}
+
+// Initialize Map
+let mapInstance = null;
+let markersLayer = null;
+
+async function initializeMap() {
+    if (mapInstance) return; // Already initialized
+    
+    // Initialize Leaflet map
+    mapInstance = L.map('tripMap').setView([51.505, -0.09], 13);
+    
+    // Add OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(mapInstance);
+    
+    // Create a layer group for markers
+    markersLayer = L.layerGroup().addTo(mapInstance);
+    
+    // Load and display markers
+    await loadMapMarkers();
+}
+
+async function loadMapMarkers() {
+    try {
+        // Load accommodations
+        const accomResponse = await fetch(`/api/travel/trips/${tripId}/accommodations`, {
+            credentials: 'include'
+        });
+        const accomData = await accomResponse.json();
+        
+        // Load activities
+        const actResponse = await fetch(`/api/travel/trips/${tripId}/activities`, {
+            credentials: 'include'
+        });
+        const actData = await actResponse.json();
+        
+        const bounds = [];
+        
+        // Add accommodation markers
+        if (accomData.success && accomData.accommodations) {
+            accomData.accommodations.forEach(acc => {
+                if (acc.latitude && acc.longitude) {
+                    const marker = L.marker([acc.latitude, acc.longitude], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(markersLayer);
+                    
+                    marker.bindPopup(`
+                        <strong><i class="fas fa-hotel"></i> ${acc.name}</strong><br>
+                        ${acc.address || ''}<br>
+                        <small>Check-in: ${acc.check_in_date}</small>
+                    `);
+                    
+                    bounds.push([acc.latitude, acc.longitude]);
+                }
+            });
+        }
+        
+        // Add activity markers
+        if (actData.success && actData.activities) {
+            actData.activities.forEach(act => {
+                if (act.latitude && act.longitude) {
+                    const marker = L.marker([act.latitude, act.longitude], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(markersLayer);
+                    
+                    marker.bindPopup(`
+                        <strong><i class="fas fa-map-marker-alt"></i> ${act.name}</strong><br>
+                        ${act.location || ''}<br>
+                        <small>${act.start_date} ${act.start_time || ''}</small><br>
+                        <span class="badge bg-${getCategoryColor(act.category)}">${act.category}</span>
+                    `);
+                    
+                    bounds.push([act.latitude, act.longitude]);
+                }
+            });
+        }
+        
+        // Fit map to show all markers
+        if (bounds.length > 0) {
+            mapInstance.fitBounds(bounds, { padding: [50, 50] });
+        } else {
+            // Default to trip destination if available
+            if (typeof tripCity !== 'undefined' && typeof tripCountry !== 'undefined') {
+                // Use Nominatim to geocode the destination
+                geocodeDestination(tripCity, tripCountry);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading map markers:', error);
+    }
+}
+
+async function geocodeDestination(city, country) {
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&format=json&limit=1`);
+        const data = await response.json();
+        
+        if (data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            mapInstance.setView([lat, lon], 12);
+            
+            // Add a marker for the destination
+            L.marker([lat, lon]).addTo(markersLayer)
+                .bindPopup(`<strong>${city}, ${country}</strong>`)
+                .openPopup();
+        }
+    } catch (error) {
+        console.error('Error geocoding destination:', error);
+    }
+}
+
+// Tab event listeners
+document.getElementById('activities-tab').addEventListener('shown.bs.tab', loadActivities);
+document.getElementById('accommodations-tab').addEventListener('shown.bs.tab', loadAccommodations);
+
+// Activity Modal Functions
+let activityModal, accommodationModal, expenseModal, packingModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
+    accommodationModal = new bootstrap.Modal(document.getElementById('accommodationModal'));
+    expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+    packingModal = new bootstrap.Modal(document.getElementById('packingModal'));
+});
+
+function addActivity() {
+    // Reset form
+    document.getElementById('activityForm').reset();
+    document.getElementById('activityId').value = '';
+    document.getElementById('activityModalLabel').textContent = 'Add Activity';
+    document.getElementById('deleteActivityBtn').style.display = 'none';
+    
+    // Set default dates to trip dates
+    const tripStart = '{{ trip.start_date }}';
+    const tripEnd = '{{ trip.end_date }}';
+    if (tripStart) document.getElementById('activityStartDate').value = tripStart;
+    if (tripEnd) document.getElementById('activityEndDate').value = tripEnd;
+    
+    activityModal.show();
+}
+
+async function editActivity(id) {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/activities/${id}`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const activity = data.activity;
+            
+            // Split datetime into date and time
+            let startDate = '', startTime = '', endDate = '', endTime = '';
+            
+            if (activity.start_datetime) {
+                const start = new Date(activity.start_datetime);
+                startDate = start.toISOString().split('T')[0];
+                startTime = start.toTimeString().slice(0, 5);
+            }
+            
+            if (activity.end_datetime) {
+                const end = new Date(activity.end_datetime);
+                endDate = end.toISOString().split('T')[0];
+                endTime = end.toTimeString().slice(0, 5);
+            }
+            
+            // Populate form
+            document.getElementById('activityId').value = activity.id;
+            document.getElementById('activityName').value = activity.name || '';
+            document.getElementById('activityCategory').value = activity.category || 'other';
+            document.getElementById('activityDescription').value = activity.description || '';
+            document.getElementById('activityStartDate').value = startDate;
+            document.getElementById('activityStartTime').value = startTime;
+            document.getElementById('activityEndDate').value = endDate;
+            document.getElementById('activityEndTime').value = endTime;
+            document.getElementById('activityLocation').value = activity.location_name || '';
+            document.getElementById('activityLatitude').value = activity.latitude || '';
+            document.getElementById('activityLongitude').value = activity.longitude || '';
+            document.getElementById('activityPriority').value = activity.priority || 'medium';
+            document.getElementById('activityCost').value = activity.cost || '';
+            document.getElementById('activityDuration').value = activity.duration_minutes || '';
+            document.getElementById('activityNotes').value = activity.notes || '';
+            
+            document.getElementById('activityModalLabel').textContent = 'Edit Activity';
+            document.getElementById('deleteActivityBtn').style.display = 'inline-block';
+            
+            activityModal.show();
+        }
+    } catch (error) {
+        console.error('Error loading activity:', error);
+        alert('Failed to load activity details');
+    }
+}
+
+async function saveActivity() {
+    const form = document.getElementById('activityForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const activityId = document.getElementById('activityId').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Remove the id field from data (it's in the URL)
+    delete data.id;
+    
+    // Combine date and time fields into datetime
+    if (data.start_date) {
+        const startTime = data.start_time || '09:00';
+        data.start_datetime = `${data.start_date}T${startTime}:00`;
+        delete data.start_date;
+        delete data.start_time;
+    }
+    
+    if (data.end_date) {
+        const endTime = data.end_time || '17:00';
+        data.end_datetime = `${data.end_date}T${endTime}:00`;
+        delete data.end_date;
+        delete data.end_time;
+    }
+    
+    // Remove empty fields
+    Object.keys(data).forEach(key => {
+        if (data[key] === '' || data[key] === null) {
+            delete data[key];
+        }
+    });
+    
+    try {
+        const url = activityId 
+            ? `/api/travel/trips/${tripId}/activities/${activityId}`
+            : `/api/travel/trips/${tripId}/activities`;
+        const method = activityId ? 'PUT' : 'POST';
+        
+        console.log(`${method} ${url}`, data);
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Hide modal first
+            activityModal.hide();
+            
+            // Wait for modal to close before refreshing
+            setTimeout(async () => {
+                // Reload activities list
+                await loadActivities();
+                
+                // Refresh Gantt chart if visible
+                if (ganttInstance) {
+                    ganttInstance = null;
+                    await loadGanttChart();
+                }
+                
+                // Refresh map markers
+                if (mapInstance && markersLayer) {
+                    markersLayer.clearLayers();
+                    await loadMapMarkers();
+                }
+                
+                // Show success message
+                const message = activityId ? 'Activity updated successfully!' : 'Activity added successfully!';
+                showToast(message, 'success');
+            }, 300);
+        } else {
+            alert('Error: ' + (result.error || 'Failed to save activity'));
+        }
+    } catch (error) {
+        console.error('Error saving activity:', error);
+        alert('Failed to save activity: ' + error.message);
+    }
+}
+
+async function deleteActivityConfirm() {
+    if (!confirm('Are you sure you want to delete this activity?')) {
+        return;
+    }
+    
+    const activityId = document.getElementById('activityId').value;
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/activities/${activityId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            activityModal.hide();
+            
+            setTimeout(async () => {
+                await loadActivities();
+                
+                // Refresh Gantt chart
+                if (ganttInstance) {
+                    ganttInstance = null;
+                    await loadGanttChart();
+                }
+                
+                // Refresh map
+                if (mapInstance && markersLayer) {
+                    markersLayer.clearLayers();
+                    await loadMapMarkers();
+                }
+                
+                showToast('Activity deleted successfully!', 'success');
+            }, 300);
+        } else {
+            alert('Error: ' + (result.error || 'Failed to delete activity'));
+        }
+    } catch (error) {
+        console.error('Error deleting activity:', error);
+        alert('Failed to delete activity');
+    }
+}
+
+// Accommodation Modal Functions
+function addAccommodation() {
+    // Reset form
+    document.getElementById('accommodationForm').reset();
+    document.getElementById('accommodationId').value = '';
+    document.getElementById('accommodationModalLabel').textContent = 'Add Accommodation';
+    document.getElementById('deleteAccommodationBtn').style.display = 'none';
+    
+    // Set default dates
+    const tripStart = '{{ trip.start_date }}';
+    const tripEnd = '{{ trip.end_date }}';
+    if (tripStart) document.getElementById('accommodationCheckIn').value = tripStart;
+    if (tripEnd) document.getElementById('accommodationCheckOut').value = tripEnd;
+    
+    accommodationModal.show();
+}
+
+async function editAccommodation(id) {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/accommodations/${id}`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const acc = data.accommodation;
+            
+            // Populate form
+            document.getElementById('accommodationId').value = acc.id;
+            document.getElementById('accommodationName').value = acc.name || '';
+            document.getElementById('accommodationType').value = acc.accommodation_type || 'hotel';
+            document.getElementById('accommodationAddress').value = acc.address || '';
+            document.getElementById('accommodationCity').value = acc.city || '';
+            document.getElementById('accommodationLatitude').value = acc.latitude || '';
+            document.getElementById('accommodationLongitude').value = acc.longitude || '';
+            document.getElementById('accommodationPhone').value = acc.phone || '';
+            document.getElementById('accommodationWebsite').value = acc.website || '';
+            document.getElementById('accommodationCheckIn').value = acc.check_in_date || '';
+            document.getElementById('accommodationCheckInTime').value = acc.check_in_time || '15:00';
+            document.getElementById('accommodationCheckOut').value = acc.check_out_date || '';
+            document.getElementById('accommodationCheckOutTime').value = acc.check_out_time || '11:00';
+            document.getElementById('accommodationCost').value = acc.total_cost || '';
+            document.getElementById('accommodationCurrency').value = acc.currency || 'USD';
+            document.getElementById('accommodationConfirmation').value = acc.confirmation_number || '';
+            document.getElementById('accommodationStatus').value = acc.booking_status || 'confirmed';
+            document.getElementById('accommodationNotes').value = acc.notes || '';
+            
+            document.getElementById('accommodationModalLabel').textContent = 'Edit Accommodation';
+            document.getElementById('deleteAccommodationBtn').style.display = 'inline-block';
+            
+            accommodationModal.show();
+        }
+    } catch (error) {
+        console.error('Error loading accommodation:', error);
+        alert('Failed to load accommodation details');
+    }
+}
+
+async function saveAccommodation() {
+    const form = document.getElementById('accommodationForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const accommodationId = document.getElementById('accommodationId').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Remove the id field from data (it's in the URL)
+    delete data.id;
+    
+    // Remove empty fields
+    Object.keys(data).forEach(key => {
+        if (data[key] === '' || data[key] === null) {
+            delete data[key];
+        }
+    });
+    
+    try {
+        const url = accommodationId 
+            ? `/api/travel/trips/${tripId}/accommodations/${accommodationId}`
+            : `/api/travel/trips/${tripId}/accommodations`;
+        const method = accommodationId ? 'PUT' : 'POST';
+        
+        console.log(`${method} ${url}`, data);
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Hide modal first
+            accommodationModal.hide();
+            
+            // Wait for modal to close before refreshing
+            setTimeout(async () => {
+                // Reload accommodations list
+                await loadAccommodations();
+                
+                // Refresh map markers
+                if (mapInstance && markersLayer) {
+                    markersLayer.clearLayers();
+                    await loadMapMarkers();
+                }
+                
+                // Show success message
+                const message = accommodationId ? 'Accommodation updated successfully!' : 'Accommodation added successfully!';
+                showToast(message, 'success');
+            }, 300);
+        } else {
+            alert('Error: ' + (result.error || 'Failed to save accommodation'));
+        }
+    } catch (error) {
+        console.error('Error saving accommodation:', error);
+        alert('Failed to save accommodation: ' + error.message);
+    }
+}
+
+async function deleteAccommodationConfirm() {
+    if (!confirm('Are you sure you want to delete this accommodation?')) {
+        return;
+    }
+    
+    const accommodationId = document.getElementById('accommodationId').value;
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/accommodations/${accommodationId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            accommodationModal.hide();
+            
+            setTimeout(async () => {
+                await loadAccommodations();
+                
+                // Refresh map
+                if (mapInstance && markersLayer) {
+                    markersLayer.clearLayers();
+                    await loadMapMarkers();
+                }
+                
+                showToast('Accommodation deleted successfully!', 'success');
+            }, 300);
+        } else {
+            alert('Error: ' + (result.error || 'Failed to delete accommodation'));
+        }
+    } catch (error) {
+        console.error('Error deleting accommodation:', error);
+        alert('Failed to delete accommodation');
+    }
+}
+
+// Placeholder functions for other features
+function addExpense() {
+    alert('Expense tracking will be implemented in a future update');
+}
+
+function addPackingItem() {
+    alert('Packing list will be implemented in a future update');
+}
+
+function deleteActivity(id) {
+    editActivity(id);
+}
+
+// Toast notification helper
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+
+// ===== BUDGET TAB FUNCTIONS =====
+let budgetLoaded = false;
+
+async function loadBudget(force = false) {
+    if (budgetLoaded && !force) return;
+    
+    try {
+        const currency = '{{ trip.budget_currency }}' || 'EUR';
+        const totalBudget = parseFloat('{{ trip.budget_total }}') || 0;
+        
+        // Load all data in parallel
+        const [activitiesResp, accommodationsResp, expensesResp] = await Promise.all([
+            fetch(`/api/travel/trips/${tripId}/activities`, { credentials: 'include' }),
+            fetch(`/api/travel/trips/${tripId}/accommodations`, { credentials: 'include' }),
+            fetch(`/api/travel/trips/${tripId}/expenses`, { credentials: 'include' })
+        ]);
+        
+        const activitiesData = await activitiesResp.json();
+        const accommodationsData = await accommodationsResp.json();
+        const expensesData = await expensesResp.json();
+        
+        // Calculate planned costs
+        const activities = activitiesData.success ? activitiesData.activities : [];
+        const accommodations = accommodationsData.success ? accommodationsData.accommodations : [];
+        const expenses = expensesData.success ? expensesData.expenses : [];
+        
+        const activityCosts = activities.reduce((sum, a) => sum + (parseFloat(a.cost) || 0), 0);
+        const accommodationCosts = accommodations.reduce((sum, a) => sum + (parseFloat(a.total_cost) || 0), 0);
+        const plannedCosts = activityCosts + accommodationCosts;
+        
+        const otherExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        const totalSpent = plannedCosts + otherExpenses;
+        const remaining = totalBudget - totalSpent;
+        
+        // Update summary cards
+        document.getElementById('budgetTotal').textContent = `${totalBudget.toFixed(2)} ${currency}`;
+        document.getElementById('plannedCosts').textContent = `${plannedCosts.toFixed(2)} ${currency}`;
+        document.getElementById('otherExpenses').textContent = `${otherExpenses.toFixed(2)} ${currency}`;
+        document.getElementById('budgetRemaining').textContent = `${remaining.toFixed(2)} ${currency}`;
+        
+        // Update remaining card color
+        const remainingCard = document.getElementById('budgetRemaining');
+        if (remaining < 0) {
+            remainingCard.className = 'text-danger';
+        } else if (remaining < totalBudget * 0.2) {
+            remainingCard.className = 'text-warning';
+        } else {
+            remainingCard.className = 'text-success';
+        }
+        
+        // Update breakdown
+        document.getElementById('accommodationCosts').textContent = `${accommodationCosts.toFixed(2)} ${currency}`;
+        document.getElementById('activityCosts').textContent = `${activityCosts.toFixed(2)} ${currency}`;
+        
+        if (plannedCosts > 0) {
+            const accommodationPct = (accommodationCosts / plannedCosts * 100).toFixed(0);
+            const activityPct = (activityCosts / plannedCosts * 100).toFixed(0);
+            document.getElementById('accommodationProgress').style.width = accommodationPct + '%';
+            document.getElementById('activityProgress').style.width = activityPct + '%';
+        }
+        
+        // Expense category summary
+        const categorySummary = {};
+        expenses.forEach(e => {
+            const cat = e.category || 'Other';
+            if (!categorySummary[cat]) categorySummary[cat] = 0;
+            categorySummary[cat] += parseFloat(e.amount) || 0;
+        });
+        
+        const summaryDiv = document.getElementById('expenseCategorySummary');
+        if (Object.keys(categorySummary).length > 0) {
+            let summaryHTML = '';
+            Object.entries(categorySummary).forEach(([cat, amt]) => {
+                summaryHTML += `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>${cat}</span>
+                        <strong>${amt.toFixed(2)} ${currency}</strong>
+                    </div>
+                `;
+            });
+            summaryDiv.innerHTML = summaryHTML;
+        } else {
+            summaryDiv.innerHTML = '<p class="text-muted text-center mb-0">No expenses yet</p>';
+        }
+        
+        // Render expenses list
+        renderExpenses(expenses, currency);
+        
+        budgetLoaded = true;
+    } catch (error) {
+        console.error('Error loading budget:', error);
+        document.getElementById('expensesList').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> Error loading budget data
+            </div>
+        `;
+    }
+}
+
+function renderExpenses(expenses, currency) {
+    const container = document.getElementById('expensesList');
+    
+    if (expenses.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-wallet fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No additional expenses yet</h5>
+                <p class="text-muted">Track your trip expenses here</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = expenses.map(expense => `
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="mb-1">${expense.description}</h5>
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-calendar"></i> ${expense.expense_date}
+                            ${expense.category ? `<span class="badge bg-secondary ms-2">${expense.category}</span>` : ''}
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <h4 class="mb-0">${parseFloat(expense.amount).toFixed(2)} ${expense.currency || currency}</h4>
+                        <div class="btn-group btn-group-sm mt-2">
+                            <button class="btn btn-outline-primary" onclick="editExpense(${expense.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteExpense(${expense.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                ${expense.notes ? `<p class="mb-0 mt-2"><small>${expense.notes}</small></p>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function addExpense() {
+    document.getElementById('expenseForm').reset();
+    document.getElementById('expenseId').value = '';
+    document.getElementById('expenseModalLabel').textContent = 'Add Expense';
+    document.getElementById('deleteExpenseBtn').style.display = 'none';
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('expenseDate').value = today;
+    
+    const modal = new bootstrap.Modal(document.getElementById('expenseModal'));
+    modal.show();
+}
+
+async function editExpense(id) {
+    try {
+        // Fetch expense data
+        const response = await fetch(`/api/travel/trips/${tripId}/expenses`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const expense = data.expenses.find(e => e.id === id);
+            if (!expense) {
+                showToast('Expense not found', 'error');
+                return;
+            }
+            
+            // Populate form
+            document.getElementById('expenseId').value = expense.id;
+            document.getElementById('expenseDescription').value = expense.description || '';
+            document.getElementById('expenseAmount').value = expense.amount || '';
+            document.getElementById('expenseCurrency').value = expense.currency || '';
+            document.getElementById('expenseDate').value = expense.expense_date || '';
+            document.getElementById('expenseCategory').value = expense.category || '';
+            document.getElementById('expenseNotes').value = expense.notes || '';
+            
+            document.getElementById('expenseModalLabel').textContent = 'Edit Expense';
+            document.getElementById('deleteExpenseBtn').style.display = 'inline-block';
+            
+            const modal = new bootstrap.Modal(document.getElementById('expenseModal'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error loading expense:', error);
+        showToast('Failed to load expense', 'error');
+    }
+}
+
+async function saveExpense() {
+    const form = document.getElementById('expenseForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const expenseId = document.getElementById('expenseId').value;
+    const isEdit = expenseId !== '';
+    
+    const data = {
+        description: document.getElementById('expenseDescription').value,
+        amount: parseFloat(document.getElementById('expenseAmount').value),
+        currency: document.getElementById('expenseCurrency').value,
+        expense_date: document.getElementById('expenseDate').value,
+        category: document.getElementById('expenseCategory').value,
+        notes: document.getElementById('expenseNotes').value
+    };
+    
+    try {
+        let response;
+        if (isEdit) {
+            response = await fetch(`/api/travel/expenses/${expenseId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        } else {
+            response = await fetch(`/api/travel/trips/${tripId}/expenses`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            showToast(isEdit ? 'Expense updated!' : 'Expense added!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
+            
+            // Reload budget with force
+            setTimeout(() => {
+                loadBudget(true);
+            }, 300);
+        } else {
+            showToast(result.error || 'Failed to save expense', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving expense:', error);
+        showToast('Failed to save expense', 'error');
+    }
+}
+
+function confirmDeleteExpense() {
+    const expenseId = document.getElementById('expenseId').value;
+    if (confirm('Are you sure you want to delete this expense?')) {
+        deleteExpense(expenseId);
+        bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
+    }
+}
+
+async function deleteExpense(id) {
+    if (!confirm('Delete this expense?')) return;
+    
+    try {
+        const response = await fetch(`/api/travel/expenses/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('Expense deleted', 'success');
+            loadBudget(true);
+        }
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+        showToast('Failed to delete expense', 'error');
+    }
+}
+
+// ===== PACKING LIST TAB FUNCTIONS =====
+let packingLoaded = false;
+
+async function loadPackingList(force = false) {
+    if (packingLoaded && !force) return;
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/packing`, {
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const items = data.items || [];
+            const summary = data.summary || [];
+            
+            // Update progress
+            const totalItems = items.length;
+            const packedItems = items.filter(i => i.is_packed).length;
+            const progressPct = totalItems > 0 ? (packedItems / totalItems * 100).toFixed(0) : 0;
+            
+            document.getElementById('packingProgress').textContent = `${packedItems} / ${totalItems} items packed`;
+            document.getElementById('packingProgressBar').style.width = progressPct + '%';
+            document.getElementById('packingProgressText').textContent = progressPct + '%';
+            
+            // Render packing list
+            renderPackingList(items);
+            
+            packingLoaded = true;
+        }
+    } catch (error) {
+        console.error('Error loading packing list:', error);
+        document.getElementById('packingList').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> Error loading packing list
+            </div>
+        `;
+    }
+}
+
+function renderPackingList(items) {
+    const container = document.getElementById('packingList');
+    
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-suitcase fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No packing items yet</h5>
+                <p class="text-muted">Start building your packing list</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Group by category
+    const categories = {};
+    items.forEach(item => {
+        const cat = item.category || 'Other';
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(item);
+    });
+    
+    let html = '';
+    Object.entries(categories).forEach(([category, catItems]) => {
+        const packedCount = catItems.filter(i => i.is_packed).length;
+        const totalCount = catItems.length;
+        
+        html += `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-tag"></i> ${category}</h6>
+                        <span class="badge bg-primary">${packedCount} / ${totalCount} packed</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+        `;
+        
+        catItems.forEach(item => {
+            html += `
+                <div class="list-group-item px-0">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" 
+                               id="pack-${item.id}" 
+                               ${item.is_packed ? 'checked' : ''}
+                               onchange="togglePackingItem(${item.id})">
+                        <label class="form-check-label ${item.is_packed ? 'text-decoration-line-through text-muted' : ''}" 
+                               for="pack-${item.id}">
+                            ${item.item_name}
+                            ${item.quantity > 1 ? `<span class="badge bg-secondary ms-2">${item.quantity}</span>` : ''}
+                        </label>
+                        ${item.notes ? `<br><small class="text-muted ms-4">${item.notes}</small>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+async function togglePackingItem(itemId) {
+    try {
+        const response = await fetch(`/api/travel/packing/${itemId}/toggle`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            packingLoaded = false;
+            loadPackingList();
+        }
+    } catch (error) {
+        console.error('Error toggling packing item:', error);
+        showToast('Failed to update item', 'error');
+    }
+}
+
+function addPackingItem() {
+    document.getElementById('packingForm').reset();
+    document.getElementById('packingItemId').value = '';
+    document.getElementById('packingModalLabel').textContent = 'Add Packing Item';
+    document.getElementById('packingQuantity').value = '1';
+    
+    const modal = new bootstrap.Modal(document.getElementById('packingModal'));
+    modal.show();
+}
+
+async function savePackingItem() {
+    const form = document.getElementById('packingForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const data = {
+        item_name: document.getElementById('packingItemName').value,
+        category: document.getElementById('packingCategory').value,
+        quantity: parseInt(document.getElementById('packingQuantity').value) || 1,
+        notes: document.getElementById('packingNotes').value,
+        is_packed: false
+    };
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/packing`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            showToast('Packing item added!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('packingModal')).hide();
+            
+            // Reload packing list
+            setTimeout(() => {
+                packingLoaded = false;
+                loadPackingList();
+            }, 300);
+        } else {
+            showToast(result.error || 'Failed to save item', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving packing item:', error);
+        showToast('Failed to save item', 'error');
+    }
+}
+
+</script>
+{% endblock %}

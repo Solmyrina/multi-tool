@@ -46450,3 +46450,84 @@ ModuleNotFoundError: No module named 'psycopg.extras'
 /bin/sh: 1: python3: not found
 /bin/sh: 1: python3: not found
 /bin/sh: 1: python3: not found
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'
+/bin/sh: 1: python3: not found
+Traceback (most recent call last):
+  File "/app/fetch_historic_weather.py", line 14, in <module>
+    import psycopg.extras
+ModuleNotFoundError: No module named 'psycopg.extras'

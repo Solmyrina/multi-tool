@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Trip - Travel Planner{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('travel_list') }}">My Trips</a></li>
+                <li class="breadcrumb-item active">Create New Trip</li>
+            </ol>
+        </nav>
+        <h1><i class="fas fa-plus-circle"></i> Create New Trip</h1>
+        <p class="text-muted">Plan your next adventure</p>
+    </div>
+
+    <form id="createTripForm" method="POST" action="{{ url_for('travel_create') }}">
+        <!-- Basic Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Trip Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" required 
+                           placeholder="e.g., Summer in Europe">
+                    <div class="form-text">Give your trip a memorable name</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" 
+                              placeholder="What's this trip about?"></textarea>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="planning" selected>Planning</option>
+                        <option value="booked">Booked</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Destination -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> Destination</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="destination_city" class="form-label">City</label>
+                        <input type="text" class="form-control" id="destination_city" name="destination_city" 
+                               placeholder="e.g., Paris">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="destination_country" class="form-label">Country</label>
+                        <input type="text" class="form-control" id="destination_country" name="destination_country" 
+                               placeholder="e.g., France">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <select class="form-select" id="timezone" name="timezone">
+                        <option value="UTC">UTC (Default)</option>
+                        <optgroup label="Europe">
+                            <option value="Europe/London">London (GMT)</option>
+                            <option value="Europe/Paris">Paris (CET)</option>
+                            <option value="Europe/Rome">Rome (CET)</option>
+                            <option value="Europe/Athens">Athens (EET)</option>
+                            <option value="Europe/Moscow">Moscow (MSK)</option>
+                        </optgroup>
+                        <optgroup label="Americas">
+                            <option value="America/New_York">New York (EST)</option>
+                            <option value="America/Chicago">Chicago (CST)</option>
+                            <option value="America/Denver">Denver (MST)</option>
+                            <option value="America/Los_Angeles">Los Angeles (PST)</option>
+                            <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+                        </optgroup>
+                        <optgroup label="Asia">
+                            <option value="Asia/Tokyo">Tokyo (JST)</option>
+                            <option value="Asia/Shanghai">Shanghai (CST)</option>
+                            <option value="Asia/Dubai">Dubai (GST)</option>
+                            <option value="Asia/Singapore">Singapore (SGT)</option>
+                            <option value="Asia/Bangkok">Bangkok (ICT)</option>
+                        </optgroup>
+                        <optgroup label="Pacific">
+                            <option value="Australia/Sydney">Sydney (AEDT)</option>
+                            <option value="Pacific/Auckland">Auckland (NZDT)</option>
+                        </optgroup>
+                    </select>
+                    <div class="form-text">Select the timezone of your destination</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-wallet"></i> Budget</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="budget_total" class="form-label">Total Budget</label>
+                        <input type="number" class="form-control" id="budget_total" name="budget_total" 
+                               step="0.01" min="0" placeholder="e.g., 2000.00">
+                        <div class="form-text">Optional: Set a budget to track expenses</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="budget_currency" class="form-label">Currency</label>
+                        <select class="form-select" id="budget_currency" name="budget_currency">
+                            <option value="EUR" selected>EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="JPY">JPY (¥)</option>
+                            <option value="AUD">AUD (A$)</option>
+                            <option value="CAD">CAD (C$)</option>
+                            <option value="CHF">CHF (Fr)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 mb-5">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-check"></i> Create Trip
+            </button>
+            <a href="{{ url_for('travel_list') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Set minimum date to today
+document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
+
+// Update end date minimum when start date changes
+document.getElementById('start_date').addEventListener('change', function() {
+    const endDateInput = document.getElementById('end_date');
+    endDateInput.min = this.value;
+    
+    // If end date is before new start date, update it
+    if (endDateInput.value && endDateInput.value < this.value) {
+        endDateInput.value = this.value;
+    }
+});
+
+// Form submission
+document.getElementById('createTripForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Convert empty strings to null
+    Object.keys(data).forEach(key => {
+        if (data[key] === '') {
+            data[key] = null;
+        }
+    });
+    
+    // Convert budget to number
+    if (data.budget_total) {
+        data.budget_total = parseFloat(data.budget_total);
+    }
+    
+    try {
+        const response = await fetch('/api/travel/trips', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Redirect to trip detail page
+            window.location.href = `/travel/trips/${result.trip.id}`;
+        } else {
+            alert('Error creating trip: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to create trip. Please try again.');
+    }
+});
+</script>
+{% endblock %}

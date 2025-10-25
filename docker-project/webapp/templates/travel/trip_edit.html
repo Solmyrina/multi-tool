@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Trip - {{ trip.name }} - Travel Planner{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('travel_list') }}">My Trips</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('trip_detail', trip_id=trip.id) }}">{{ trip.name }}</a></li>
+                <li class="breadcrumb-item active">Edit</li>
+            </ol>
+        </nav>
+        <h1><i class="fas fa-edit"></i> Edit Trip</h1>
+        <p class="text-muted">Update your trip details</p>
+    </div>
+
+    <form id="editTripForm" method="POST">
+        <!-- Basic Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Trip Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" required 
+                           value="{{ trip.name }}" placeholder="e.g., Summer in Europe">
+                    <div class="form-text">Give your trip a memorable name</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" 
+                              placeholder="What's this trip about?">{{ trip.description or '' }}</textarea>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" required
+                               value="{{ trip.start_date if trip.start_date else '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" required
+                               value="{{ trip.end_date if trip.end_date else '' }}">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="planning" {% if trip.status == 'planning' %}selected{% endif %}>Planning</option>
+                        <option value="booked" {% if trip.status == 'booked' %}selected{% endif %}>Booked</option>
+                        <option value="in_progress" {% if trip.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                        <option value="completed" {% if trip.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="cancelled" {% if trip.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Destination -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> Destination</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="destination_city" class="form-label">City</label>
+                        <input type="text" class="form-control" id="destination_city" name="destination_city" 
+                               value="{{ trip.destination_city or '' }}" placeholder="e.g., Paris">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="destination_country" class="form-label">Country</label>
+                        <input type="text" class="form-control" id="destination_country" name="destination_country" 
+                               value="{{ trip.destination_country or '' }}" placeholder="e.g., France">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <select class="form-select" id="timezone" name="timezone">
+                        <option value="UTC" {% if trip.timezone == 'UTC' %}selected{% endif %}>UTC (Default)</option>
+                        <optgroup label="Europe">
+                            <option value="Europe/London" {% if trip.timezone == 'Europe/London' %}selected{% endif %}>London (GMT)</option>
+                            <option value="Europe/Paris" {% if trip.timezone == 'Europe/Paris' %}selected{% endif %}>Paris (CET)</option>
+                            <option value="Europe/Rome" {% if trip.timezone == 'Europe/Rome' %}selected{% endif %}>Rome (CET)</option>
+                            <option value="Europe/Athens" {% if trip.timezone == 'Europe/Athens' %}selected{% endif %}>Athens (EET)</option>
+                            <option value="Europe/Moscow" {% if trip.timezone == 'Europe/Moscow' %}selected{% endif %}>Moscow (MSK)</option>
+                        </optgroup>
+                        <optgroup label="Americas">
+                            <option value="America/New_York" {% if trip.timezone == 'America/New_York' %}selected{% endif %}>New York (EST)</option>
+                            <option value="America/Chicago" {% if trip.timezone == 'America/Chicago' %}selected{% endif %}>Chicago (CST)</option>
+                            <option value="America/Denver" {% if trip.timezone == 'America/Denver' %}selected{% endif %}>Denver (MST)</option>
+                            <option value="America/Los_Angeles" {% if trip.timezone == 'America/Los_Angeles' %}selected{% endif %}>Los Angeles (PST)</option>
+                            <option value="America/Sao_Paulo" {% if trip.timezone == 'America/Sao_Paulo' %}selected{% endif %}>São Paulo (BRT)</option>
+                        </optgroup>
+                        <optgroup label="Asia">
+                            <option value="Asia/Tokyo" {% if trip.timezone == 'Asia/Tokyo' %}selected{% endif %}>Tokyo (JST)</option>
+                            <option value="Asia/Shanghai" {% if trip.timezone == 'Asia/Shanghai' %}selected{% endif %}>Shanghai (CST)</option>
+                            <option value="Asia/Dubai" {% if trip.timezone == 'Asia/Dubai' %}selected{% endif %}>Dubai (GST)</option>
+                            <option value="Asia/Singapore" {% if trip.timezone == 'Asia/Singapore' %}selected{% endif %}>Singapore (SGT)</option>
+                            <option value="Asia/Bangkok" {% if trip.timezone == 'Asia/Bangkok' %}selected{% endif %}>Bangkok (ICT)</option>
+                        </optgroup>
+                        <optgroup label="Pacific">
+                            <option value="Australia/Sydney" {% if trip.timezone == 'Australia/Sydney' %}selected{% endif %}>Sydney (AEDT)</option>
+                            <option value="Pacific/Auckland" {% if trip.timezone == 'Pacific/Auckland' %}selected{% endif %}>Auckland (NZDT)</option>
+                        </optgroup>
+                    </select>
+                    <div class="form-text">Select the timezone of your destination</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-wallet"></i> Budget</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="budget_total" class="form-label">Total Budget</label>
+                        <input type="number" class="form-control" id="budget_total" name="budget_total" 
+                               step="0.01" min="0" placeholder="e.g., 2000.00"
+                               value="{{ trip.budget_total if trip.budget_total else '' }}">
+                        <div class="form-text">Optional: Set a budget to track expenses</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="budget_currency" class="form-label">Currency</label>
+                        <select class="form-select" id="budget_currency" name="budget_currency">
+                            <option value="EUR" {% if trip.budget_currency == 'EUR' %}selected{% endif %}>EUR (€)</option>
+                            <option value="USD" {% if trip.budget_currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                            <option value="GBP" {% if trip.budget_currency == 'GBP' %}selected{% endif %}>GBP (£)</option>
+                            <option value="JPY" {% if trip.budget_currency == 'JPY' %}selected{% endif %}>JPY (¥)</option>
+                            <option value="AUD" {% if trip.budget_currency == 'AUD' %}selected{% endif %}>AUD (A$)</option>
+                            <option value="CAD" {% if trip.budget_currency == 'CAD' %}selected{% endif %}>CAD (C$)</option>
+                            <option value="CHF" {% if trip.budget_currency == 'CHF' %}selected{% endif %}>CHF (Fr)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 mb-5">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+            <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Set minimum date to today for new trips, or allow past dates for existing trips
+const startDateInput = document.getElementById('start_date');
+const endDateInput = document.getElementById('end_date');
+
+// Update end date minimum when start date changes
+startDateInput.addEventListener('change', function() {
+    endDateInput.min = this.value;
+    
+    // If end date is before new start date, update it
+    if (endDateInput.value && endDateInput.value < this.value) {
+        endDateInput.value = this.value;
+    }
+});
+
+// Form submission
+document.getElementById('editTripForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Convert empty strings to null
+    Object.keys(data).forEach(key => {
+        if (data[key] === '') {
+            data[key] = null;
+        }
+    });
+    
+    // Convert budget to number
+    if (data.budget_total) {
+        data.budget_total = parseFloat(data.budget_total);
+    }
+    
+    try {
+        const response = await fetch('/api/travel/trips/{{ trip.id }}', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Redirect back to trip detail page
+            window.location.href = '/travel/trips/{{ trip.id }}';
+        } else {
+            alert('Error updating trip: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to update trip. Please try again.');
+    }
+});
+</script>
+{% endblock %}

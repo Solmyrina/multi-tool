@@ -14,6 +14,7 @@ from demo_data_generator import DemoStockDataGenerator
 from crypto_service import CryptoDataService
 from crypto_backtest_service import CryptoBacktestService
 from streaming_backtest_service import StreamingBacktestService
+from travel_api import travel_bp
 
 load_dotenv()
 
@@ -21,6 +22,9 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 Compress(app)  # Enable gzip/brotli compression for all responses
 api = Api(app)
+
+# Register Travel Planner Blueprint
+app.register_blueprint(travel_bp)
 
 # Database configuration (psycopg3 uses dbname instead of database)
 DB_CONFIG = {

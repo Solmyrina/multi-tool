@@ -6,7 +6,7 @@ import subprocess
 import threading
 import json
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response, Response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 import psycopg
@@ -4796,6 +4796,362 @@ def get_database_health():
     except Exception as e:
         app.logger.error(f"Error fetching database health: {str(e)}")
         return jsonify({'error': f'Error fetching database health: {str(e)}'}), 500
+
+
+# =============================================================================
+# TRAVEL PLANNER ROUTES
+# =============================================================================
+
+@app.route('/travel')
+@login_required
+def travel_list():
+    """List all trips for the current user"""
+    try:
+        # Get filter parameters
+        status = request.args.get('status')
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        
+        # Call API to get trips
+        api_url = f'http://api:8000/api/travel/trips?limit={limit}&offset={offset}'
+        if status:
+            api_url += f'&status={status}'
+        
+        response = requests.get(api_url, cookies={'user_id': str(current_user.id)})
+        
+        if response.status_code == 200:
+            data = response.json()
+            trips = data.get('trips', [])
+            total = data.get('total', 0)
+            
+            # Calculate duration for each trip
+            for trip in trips:
+                if trip.get('start_date') and trip.get('end_date'):
+                    from datetime import datetime
+                    start = datetime.fromisoformat(trip['start_date'])
+                    end = datetime.fromisoformat(trip['end_date'])
+                    trip['duration_days'] = (end - start).days + 1
+            
+            return render_template('travel/trip_list.html', 
+                                 trips=trips, 
+                                 total=total, 
+                                 limit=limit, 
+                                 offset=offset)
+        else:
+            flash('Error loading trips', 'danger')
+            return render_template('travel/trip_list.html', trips=[], total=0, limit=limit, offset=offset)
+            
+    except Exception as e:
+        app.logger.error(f"Error loading trips: {str(e)}")
+        flash('Error loading trips', 'danger')
+        return render_template('travel/trip_list.html', trips=[], total=0, limit=50, offset=0)
+
+
+@app.route('/travel/create', methods=['GET', 'POST'])
+@login_required
+def travel_create():
+    """Create a new trip"""
+    return render_template('travel/trip_create.html')
+
+
+@app.route('/travel/trips/<int:trip_id>')
+@login_required
+def trip_detail(trip_id):
+    """View trip details"""
+    try:
+        # Get trip from API
+        response = requests.get(
+            f'http://api:8000/api/travel/trips/{trip_id}',
+            cookies={'user_id': str(current_user.id)}
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            trip = data.get('trip')
+            
+            if trip:
+                # Calculate duration
+                if trip.get('start_date') and trip.get('end_date'):
+                    from datetime import datetime
+                    start = datetime.fromisoformat(trip['start_date'])
+                    end = datetime.fromisoformat(trip['end_date'])
+                    trip['duration_days'] = (end - start).days + 1
+                
+                return render_template('travel/trip_detail.html', trip=trip)
+        
+        flash('Trip not found', 'danger')
+        return redirect(url_for('travel_list'))
+        
+    except Exception as e:
+        app.logger.error(f"Error loading trip: {str(e)}")
+        flash('Error loading trip', 'danger')
+        return redirect(url_for('travel_list'))
+
+
+@app.route('/travel/trips/<int:trip_id>/edit', methods=['GET', 'POST'])
+@login_required
+def trip_edit(trip_id):
+    """Edit a trip"""
+    if request.method == 'GET':
+        try:
+            # Get trip from API
+            response = requests.get(
+                f'http://api:8000/api/travel/trips/{trip_id}',
+                cookies={'user_id': str(current_user.id)}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                trip = data.get('trip')
+                
+                if trip:
+                    return render_template('travel/trip_edit.html', trip=trip)
+            
+            flash('Trip not found', 'danger')
+            return redirect(url_for('travel_list'))
+            
+        except Exception as e:
+            app.logger.error(f"Error loading trip for edit: {str(e)}")
+            flash('Error loading trip', 'danger')
+            return redirect(url_for('travel_list'))
+    
+    # POST request handled by JavaScript/API
+
+
+@app.route('/travel/trips/<int:trip_id>/calendar/export')
+@login_required
+def export_calendar(trip_id):
+    """Export trip to calendar .ics file"""
+    try:
+        # Proxy to API
+        response = requests.get(
+            f'http://api:8000/api/travel/trips/{trip_id}/export/calendar',
+            cookies={'user_id': str(current_user.id)}
+        )
+        
+        if response.status_code == 200:
+            # Return the .ics file
+            ics_response = make_response(response.content)
+            ics_response.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+            ics_response.headers['Content-Disposition'] = f'attachment; filename="trip_{trip_id}.ics"'
+            return ics_response
+        else:
+            flash('Error exporting calendar', 'danger')
+            return redirect(url_for('trip_detail', trip_id=trip_id))
+            
+    except Exception as e:
+        app.logger.error(f"Error exporting calendar: {str(e)}")
+        flash('Error exporting calendar', 'danger')
+        return redirect(url_for('trip_detail', trip_id=trip_id))
+
+
+# API Proxy Routes for AJAX calls
+@app.route('/api/travel/trips', methods=['GET', 'POST'])
+@login_required
+def api_trips():
+    """Proxy trips API endpoint"""
+    try:
+        if request.method == 'GET':
+            response = requests.get(
+                'http://api:8000/api/travel/trips',
+                params=request.args,
+                cookies={'user_id': str(current_user.id)}
+            )
+        else:  # POST
+            response = requests.post(
+                'http://api:8000/api/travel/trips',
+                json=request.get_json(),
+                cookies={'user_id': str(current_user.id)}
+            )
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying trips API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_trip_detail(trip_id):
+    """Proxy trip detail API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        elif request.method == 'PUT':
+            response = requests.put(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        else:  # DELETE
+            response = requests.delete(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying trip detail API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/activities', methods=['GET', 'POST'])
+@login_required
+def api_activities(trip_id):
+    """Proxy activities API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/activities'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        else:  # POST
+            response = requests.post(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying activities API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/activities/<int:activity_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_activity_detail(trip_id, activity_id):
+    """Proxy activity detail API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/activities/{activity_id}'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        elif request.method == 'PUT':
+            response = requests.put(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        else:  # DELETE
+            response = requests.delete(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying activity detail API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/accommodations', methods=['GET', 'POST'])
+@login_required
+def api_accommodations(trip_id):
+    """Proxy accommodations API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/accommodations'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        else:  # POST
+            response = requests.post(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying accommodations API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/accommodations/<int:accommodation_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_accommodation_detail(trip_id, accommodation_id):
+    """Proxy accommodation detail API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/accommodations/{accommodation_id}'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        elif request.method == 'PUT':
+            response = requests.put(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        else:  # DELETE
+            response = requests.delete(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying accommodation detail API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Expenses API proxy
+@app.route('/api/travel/trips/<int:trip_id>/expenses', methods=['GET', 'POST'])
+@login_required
+def api_expenses(trip_id):
+    """Proxy expenses API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/expenses'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        else:  # POST
+            response = requests.post(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying expenses API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/expenses/<int:expense_id>', methods=['PUT', 'DELETE'])
+@login_required
+def api_expense_detail(expense_id):
+    """Proxy expense detail API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/expenses/{expense_id}'
+        
+        if request.method == 'PUT':
+            response = requests.put(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        else:  # DELETE
+            response = requests.delete(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying expense detail API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Packing List API proxy
+@app.route('/api/travel/trips/<int:trip_id>/packing', methods=['GET', 'POST'])
+@login_required
+def api_packing(trip_id):
+    """Proxy packing list API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/packing'
+        
+        if request.method == 'GET':
+            response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        else:  # POST
+            response = requests.post(url, json=request.get_json(), cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying packing API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/packing/<int:item_id>/toggle', methods=['POST'])
+@login_required
+def api_packing_toggle(item_id):
+    """Proxy packing item toggle API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/packing/{item_id}/toggle'
+        response = requests.post(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying packing toggle API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Custom Jinja2 filters for travel templates
+@app.template_filter('format_date')
+def format_date(date_str):
+    """Format date string for display"""
+    if not date_str:
+        return ''
+    try:
+        from datetime import datetime
+        if isinstance(date_str, str):
+            date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        else:
+            date_obj = date_str
+        return date_obj.strftime('%b %d, %Y')
+    except:
+        return date_str
+
 
 if __name__ == '__main__':
     @app.route('/api/test')
