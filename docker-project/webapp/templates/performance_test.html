@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance API Test</title>
+</head>
+<body>
+    <h1>Performance Dashboard API Test</h1>
+    <button onclick="testAPI()">Test Database Health API</button>
+    <pre id="output"></pre>
+
+    <script>
+    function testAPI() {
+        const output = document.getElementById('output');
+        output.textContent = 'Testing...\n';
+        
+        console.log('=== STARTING API TEST ===');
+        
+        fetch('/api/performance/database/health', {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            output.textContent += `Status: ${response.status}\n`;
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Data received:', data);
+            output.textContent += 'Success: ' + data.success + '\n';
+            
+            if (data.success) {
+                output.textContent += 'Crypto prices: ' + data.data.crypto_prices.total_price_records + '\n';
+                output.textContent += 'Table stats: ' + data.data.table_stats.length + ' tables\n';
+                output.textContent += 'Index stats: ' + data.data.index_stats.length + ' indexes\n';
+                output.textContent += '\n✅ API IS WORKING!\n';
+                output.textContent += '\nFull response:\n' + JSON.stringify(data, null, 2);
+            } else {
+                output.textContent += 'Error: ' + data.error + '\n';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            output.textContent += 'ERROR: ' + error.message + '\n';
+        });
+    }
+    
+    // Auto-run test on page load
+    window.addEventListener('load', () => {
+        console.log('Page loaded, running test...');
+        testAPI();
+    });
+    </script>
+</body>
+</html>

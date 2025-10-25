@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Animation Test</title>
+    <style>
+        .test-pump {
+            width: 80px;
+            height: 60px;
+            background: #3498db;
+            border-radius: 50%;
+            border: 3px solid #2980b9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 50px;
+        }
+
+        .pump-impeller {
+            width: 30px;
+            height: 30px;
+            border: 3px solid white;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pump-impeller::before,
+        .pump-impeller::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 2px;
+        }
+
+        .pump-impeller::before {
+            width: 24px;
+            height: 3px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .pump-impeller::after {
+            width: 3px;
+            height: 24px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .test-pump.running .pump-impeller {
+            animation: rotate 0.5s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .test-valve {
+            width: 60px;
+            height: 80px;
+            position: relative;
+            margin: 50px;
+        }
+
+        .valve-body {
+            width: 30px;
+            height: 40px;
+            background: #95a5a6;
+            border: 2px solid #7f8c8d;
+            position: absolute;
+            left: 15px;
+            top: 20px;
+            border-radius: 4px;
+        }
+
+        .valve-stem {
+            width: 10px;
+            height: 20px;
+            background: #f39c12;
+            border: 1px solid #e67e22;
+            position: absolute;
+            left: 25px;
+            transition: top 1.5s ease-in-out;
+            border-radius: 2px;
+        }
+
+        .test-valve.open .valve-stem {
+            top: 5px;
+        }
+
+        .test-valve.closed .valve-stem {
+            top: 25px;
+        }
+
+        .flow-arrow {
+            width: 0;
+            height: 0;
+            border-style: solid;
+            margin: 20px;
+        }
+
+        .flow-arrow.right {
+            border-left: 12px solid #27ae60;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            animation: flow-right 1.5s ease-in-out infinite;
+        }
+
+        @keyframes flow-right {
+            0%, 100% { opacity: 0.3; transform: translateX(-10px); }
+            50% { opacity: 1; transform: translateX(10px); }
+        }
+
+        .liquid-bubble {
+            width: 10px;
+            height: 10px;
+            background: rgba(52, 152, 219, 0.7);
+            border-radius: 50%;
+            animation: bubble 2s ease-in-out infinite;
+            margin: 10px;
+        }
+
+        @keyframes bubble {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+            50% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Animation Test Page</h1>
+    
+    <h2>Pump Animation (Always Running)</h2>
+    <div class="test-pump running">
+        <div class="pump-impeller"></div>
+    </div>
+    
+    <h2>Valve Animation</h2>
+    <div class="test-valve open">
+        <div class="valve-body"></div>
+        <div class="valve-stem"></div>
+    </div>
+    
+    <button onclick="toggleValve()">Toggle Valve</button>
+    
+    <h2>Flow Arrow</h2>
+    <div class="flow-arrow right"></div>
+    
+    <h2>Bubble Animation</h2>
+    <div class="liquid-bubble"></div>
+    
+    <script>
+        function toggleValve() {
+            const valve = document.querySelector('.test-valve');
+            if (valve.classList.contains('open')) {
+                valve.classList.remove('open');
+                valve.classList.add('closed');
+            } else {
+                valve.classList.remove('closed');
+                valve.classList.add('open');
+            }
+        }
+    </script>
+</body>
+</html>

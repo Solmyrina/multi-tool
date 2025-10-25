@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Debug{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Performance Debug Test</h1>
+    
+    <div class="alert alert-success">
+        <h4>✅ Template Loading Works</h4>
+        <p>If you see this message, the Flask template system is working correctly.</p>
+    </div>
+    
+    <div class="alert alert-info">
+        <h4>🔍 JavaScript Test</h4>
+        <p>Check the browser console for JavaScript messages.</p>
+        <div id="jsTest">JavaScript not executed yet...</div>
+    </div>
+    
+    <div class="alert alert-warning">
+        <h4>🌐 API Test</h4>
+        <div id="apiTest">API not tested yet...</div>
+    </div>
+</div>
+
+<script>
+console.log('=== BASIC JAVASCRIPT TEST ===');
+document.getElementById('jsTest').innerHTML = '✅ JavaScript is working!';
+document.getElementById('jsTest').style.color = 'green';
+
+// Test API call
+console.log('Testing API call...');
+fetch('/api/performance/test', {
+    credentials: 'same-origin'
+})
+.then(response => {
+    console.log('API Response Status:', response.status);
+    return response.json();
+})
+.then(data => {
+    console.log('API Response Data:', data);
+    document.getElementById('apiTest').innerHTML = '✅ API call successful: ' + JSON.stringify(data);
+    document.getElementById('apiTest').style.color = 'green';
+})
+.catch(error => {
+    console.error('API Error:', error);
+    document.getElementById('apiTest').innerHTML = '❌ API call failed: ' + error.message;
+    document.getElementById('apiTest').style.color = 'red';
+});
+
+console.log('=== END BASIC TEST ===');
+</script>
+{% endblock %}

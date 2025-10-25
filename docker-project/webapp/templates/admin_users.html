@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Docker Web App{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>User Management</h1>
+    <p>Manage system users and their access levels</p>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('admin_database') }}" class="btn" style="background: #2980b9;">🗄️ Database Admin</a>
+        <a href="{{ url_for('dashboard') }}" class="btn" style="background: #95a5a6;">← Dashboard</a>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>All Users ({{ users|length }})</h2>
+        <div>
+            <span style="color: #666;">Your Level: <strong>{{ current_user.level_name }}</strong></span>
+        </div>
+    </div>
+    
+    {% if users %}
+        <div style="overflow-x: auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>User Level</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <strong>{{ user.username }}</strong>
+                            {% if user.id == current_user.id %}
+                                <span style="color: #3498db; font-size: 0.8em;">(You)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span style="
+                                padding: 0.25rem 0.5rem; 
+                                border-radius: 4px; 
+                                font-size: 0.8em; 
+                                background: {% if user.level_code == 'super_admin' %}#e74c3c{% elif user.level_code == 'admin' %}#f39c12{% elif user.level_code == 'moderator' %}#9b59b6{% else %}#95a5a6{% endif %}; 
+                                color: white;
+                            ">
+                                {{ user.level_name }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span style="color: green;">✅ Active</span>
+                            {% else %}
+                                <span style="color: red;">❌ Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</td>
+                        <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                {% if user.level_code != 'super_admin' or current_user.is_super_admin() %}
+                                    <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" 
+                                       class="btn" style="font-size: 0.8em; padding: 0.25rem 0.5rem;">
+                                        Edit
+                                    </a>
+                                    {% if user.id != current_user.id %}
+                                        {% if user.is_active %}
+                                            <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" 
+                                                  style="display: inline;">
+                                                <button type="submit" class="btn btn-warning" 
+                                                        style="font-size: 0.8em; padding: 0.25rem 0.5rem;">
+                                                    Deactivate
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <form method="POST" action="{{ url_for('admin_activate_user', user_id=user.id) }}" 
+                                                  style="display: inline;">
+                                                <button type="submit" class="btn btn-success" 
+                                                        style="font-size: 0.8em; padding: 0.25rem 0.5rem;">
+                                                    Activate
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if current_user.is_super_admin() %}
+                                            <form method="POST" action="{{ url_for('admin_permanent_delete_user', user_id=user.id) }}" 
+                                                  style="display: inline;" 
+                                                  onsubmit="return confirm('⚠️ PERMANENT DELETION WARNING ⚠️\n\nThis will permanently delete the user and ALL their data from the database. This action CANNOT be undone.\n\nUser: {{ user.username }}\nEmail: {{ user.email }}\n\nAre you absolutely sure you want to permanently delete this user?')">
+                                                <button type="submit" class="btn btn-danger" 
+                                                        style="font-size: 0.8em; padding: 0.25rem 0.5rem; background: #c0392b;">
+                                                    🗑️ Delete Permanently
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color: #999; font-size: 0.8em;">Protected</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No users found.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>User Level Statistics</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% set level_counts = {} %}
+        {% for user in users %}
+            {% set _ = level_counts.update({user.level_name: level_counts.get(user.level_name, 0) + 1}) %}
+        {% endfor %}
+        
+        {% for level in user_levels %}
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 4px; text-align: center;">
+                <h3 style="margin: 0; color: #2c3e50;">{{ level_counts.get(level.level_name, 0) }}</h3>
+                <p style="margin: 0.5rem 0 0 0; color: #7f8c8d;">{{ level.level_name }}</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h2>User Levels Reference</h2>
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Level</th>
+                    <th>Code</th>
+                    <th>Permissions</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for level in user_levels %}
+                <tr>
+                    <td>
+                        <span style="
+                            padding: 0.25rem 0.5rem; 
+                            border-radius: 4px; 
+                            font-size: 0.8em; 
+                            background: {% if level.level_code == 'super_admin' %}#e74c3c{% elif level.level_code == 'admin' %}#f39c12{% elif level.level_code == 'moderator' %}#9b59b6{% else %}#95a5a6{% endif %}; 
+                            color: white;
+                        ">
+                            {{ level.level_name }}
+                        </span>
+                    </td>
+                    <td><code>{{ level.level_code }}</code></td>
+                    <td>{{ level.permissions|join(', ') if level.permissions else 'None' }}</td>
+                    <td>{{ level.description or 'No description' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div style="margin-bottom: 1rem;">
+    <a href="{{ url_for('admin_add_user') }}" class="btn btn-success">➕ Add New User</a>
+</div>
+{% endblock %}

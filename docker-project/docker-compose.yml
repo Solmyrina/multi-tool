@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  database:
+    # Using TimescaleDB image (PostgreSQL 17 with TimescaleDB extension)
+    image: timescale/timescaledb:2.22.1-pg17
+    container_name: docker-project-database
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: 530NWC0Gm3pt4O
+      POSTGRES_DB: webapp_db
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "effective_cache_size=2GB"
+      - "-c"
+      - "work_mem=32MB"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "jit=on"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Temporarily exposing port for integration tests
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d webapp_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  webapp:
+    build: ./webapp
+    container_name: docker-project-webapp
+    environment:
+      SECRET_KEY: your-secret-key-change-this-in-production
+      DB_HOST: database
+      DB_NAME: webapp_db
+      DB_USER: root
+      DB_PASSWORD: 530NWC0Gm3pt4O
+      DB_PORT: 5432
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./webapp:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: docker-project-api
+    environment:
+      DB_HOST: database
+      DB_NAME: webapp_db
+      DB_USER: root
+      DB_PASSWORD: 530NWC0Gm3pt4O
+      DB_PORT: 5432
+      WEBAPP_HOST: webapp
+      WEBAPP_PORT: 5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Financial API Keys (set these with your actual API keys)
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      IEX_CLOUD_API_KEY: ${IEX_CLOUD_API_KEY:-}
+      # Binance API Keys for cryptocurrency data
+      BINANCE_API_KEY: ${BINANCE_API_KEY:-}
+      BINANCE_SECRET_KEY: ${BINANCE_SECRET_KEY:-}
+    depends_on:
+      database:
+        condition: service_healthy
+      webapp:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./api:/app
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: docker-project-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@dockerproject.com
+      PGADMIN_DEFAULT_PASSWORD: 530NWC0Gm3pt4O
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_X_FRAME_OPTIONS: "'SAMEORIGIN'"
+      PGADMIN_CONFIG_CONTENT_SECURITY_POLICY: "'default-src self unsafe-inline unsafe-eval data blob ws wss; frame-ancestors self'"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: docker-project-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: docker-project-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl/server.crt:/etc/ssl/certs/server.crt:ro
+      - ./ssl/server.key:/etc/ssl/private/server.key:ro
+    depends_on:
+      - webapp
+      - api
+      - pgadmin
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+    name: docker-project-network
+
+volumes:
+  postgres_data:
+    name: docker-project-postgres-data
+  pgadmin_data:
+    name: docker-project-pgadmin-data
+  redis_data:
+    name: docker-project-redis-data

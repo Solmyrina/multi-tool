@@ -1,0 +1,15 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Docker Project Database",
+            "Group": "Servers",
+            "Host": "database",
+            "Port": 5432,
+            "MaintenanceDB": "webapp_db",
+            "Username": "root",
+            "Password": "530NWC0Gm3pt4O",
+            "SSLMode": "prefer",
+            "Comment": "Main PostgreSQL database for Docker Project"
+        }
+    }
+}

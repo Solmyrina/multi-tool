@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Docker Web App{% endblock %}
+
+{% block content %}
+<style>
+.time-display {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.local-time-main {
+    font-weight: 500;
+    color: #333;
+}
+.relative-time {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 2px;
+    font-style: italic;
+}
+.login-status-success {
+    color: #28a745;
+    font-weight: 500;
+}
+.login-status-failed {
+    color: #dc3545;
+    font-weight: 500;
+}
+</style>
+
+<div class="card">
+    <h1>User Profile</h1>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+            <h3>Account Details</h3>
+            <p><strong>Username:</strong> {{ user.username }}</p>
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            <p><strong>Account ID:</strong> {{ user.id }}</p>
+            <p><strong>Status:</strong> <span style="color: green;">Active</span></p>
+        </div>
+        <div>
+            <h3>Account Actions</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <a href="{{ url_for('change_password') }}" class="btn" style="width: fit-content;">Change Password</a>
+                {% if user.is_admin() %}
+                    <a href="{{ url_for('admin_users') }}" class="btn" style="width: fit-content;">Manage Users</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Login Attempts</h2>
+    <div id="timezone-info" style="margin-bottom: 1rem; padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; font-size: 0.9em;">
+        <span id="timezone-display">🌍 Detecting your timezone...</span>
+    </div>
+    {% if recent_attempts %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date & Time (Local)</th>
+                    <th>IP Address</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in recent_attempts %}
+                <tr>
+                    <td>
+                        <span class="local-time time-display" data-utc-time="{{ attempt.attempted_at_iso }}">
+                            {{ attempt.attempted_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC
+                        </span>
+                    </td>
+                    <td>{{ attempt.ip_address or 'N/A' }}</td>
+                    <td>
+                        {% if attempt.success %}
+                            <span class="login-status-success">✅ Success</span>
+                        {% else %}
+                            <span class="login-status-failed">❌ Failed</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ attempt.failure_reason or 'Login successful' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No recent login attempts found.</p>
+    {% endif %}
+</div>
+
+    <script>
+        function convertToLocalTime() {
+            const elements = document.querySelectorAll('.local-time');
+            const timezoneDisplay = document.getElementById('timezone-display');
+            
+            // Get user's timezone info
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const date = new Date();
+            const timezoneOffset = date.getTimezoneOffset();
+            const offsetHours = Math.abs(timezoneOffset / 60);
+            const offsetMinutes = Math.abs(timezoneOffset % 60);
+            const offsetSign = timezoneOffset <= 0 ? '+' : '-';
+            const offsetString = `${offsetSign}${offsetHours.toString().padStart(2, '0')}:${offsetMinutes.toString().padStart(2, '0')}`;
+            
+            // Display timezone info
+            timezoneDisplay.innerHTML = `🌍 Your timezone: ${timezone} (UTC${offsetString})`;
+            
+            elements.forEach(element => {
+                const utcTime = element.getAttribute('data-utc-time');
+                if (utcTime) {
+                    const utcDate = new Date(utcTime);
+                    
+                    // Convert to local time
+                    const localTime = utcDate.toLocaleString(navigator.language, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                    
+                    // Calculate relative time
+                    const now = new Date();
+                    const diffMs = now - utcDate;
+                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    
+                    let relativeTime;
+                    if (diffMinutes < 1) {
+                        relativeTime = 'Just now';
+                    } else if (diffMinutes < 60) {
+                        relativeTime = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                    } else if (diffHours < 24) {
+                        relativeTime = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                    } else if (diffDays < 7) {
+                        relativeTime = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                    } else {
+                        relativeTime = utcDate.toLocaleDateString(navigator.language);
+                    }
+                    
+                    // Create new content with both local time and relative time
+                    element.innerHTML = `
+                        <div class="local-time-main" title="Original UTC: ${utcTime}">${localTime}</div>
+                        <div class="relative-time">${relativeTime}</div>
+                    `;
+                }
+            });
+        }
+        
+        // Convert times when page loads
+        document.addEventListener('DOMContentLoaded', convertToLocalTime);
+    </script><div class="card">
+    <h2>Security</h2>
+    <p>Your account is protected with:</p>
+    <ul>
+        <li>Encrypted password storage (bcrypt)</li>
+        <li>Login attempt monitoring</li>
+        <li>Session management</li>
+        <li>Database security logging</li>
+    </ul>
+</div>
+{% endblock %}

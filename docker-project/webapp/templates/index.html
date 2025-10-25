@@ -1,0 +1,1588 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Docker Web App{% endblock %}
+
+{% block content %}
+{% if current_user.is_authenticated %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>🎛️ Control Center</h2>
+                <button class="btn btn-secondary" onclick="toggleWidgetSettings()">
+                    <i class="fas fa-cog"></i> Widget Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget Settings Panel -->
+    <div id="widget-settings" class="card mb-4" style="display: none;">
+        <div class="card-header">
+            <h5>🎛️ Configure Widgets</h5>
+        </div>
+        <div class="card-body">
+            <!-- Widget Groups -->
+            <div id="widget-groups">
+                <!-- Stock Widgets Group -->
+                <div class="widget-group mb-4">
+                    <h6 class="widget-group-title">📈 Stock Widgets</h6>
+                    <div class="row" id="stock-widget-group">
+                        <!-- Stock widgets will be populated here -->
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="showAddStockWidget()">
+                            <i class="fas fa-plus"></i> Add Stock Widget
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Weather Widgets Group -->
+                <div class="widget-group mb-4">
+                    <h6 class="widget-group-title">🌤️ Weather Widgets</h6>
+                    <div class="row" id="weather-widget-group">
+                        <!-- Weather widgets will be populated here -->
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="showAddWeatherWidget()">
+                            <i class="fas fa-plus"></i> Add Weather Widget
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Widgets Group -->
+                <div class="widget-group mb-4">
+                    <h6 class="widget-group-title">🖥️ System Widgets</h6>
+                    <div class="row" id="system-widget-group">
+                        <!-- System widgets will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button class="btn btn-primary" onclick="saveWidgetSettings()">Save Settings</button>
+                <button class="btn btn-secondary" onclick="toggleWidgetSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Stock Widget Modal -->
+    <div class="modal fade" id="addStockModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📈 Add Stock Widget</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="stockSelect" class="form-label">Select Stock:</label>
+                        <select class="form-select" id="stockSelect">
+                            <option value="">Loading stocks...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="stockWidgetName" class="form-label">Widget Name:</label>
+                        <input type="text" class="form-control" id="stockWidgetName" placeholder="e.g., Apple Stock">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addStockWidget()">Add Widget</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Weather Widget Modal -->
+    <div class="modal fade" id="addWeatherModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🌤️ Add Weather Widget</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="weatherSelect" class="form-label">Select Location:</label>
+                        <select class="form-select" id="weatherSelect">
+                            <option value="">Loading locations...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="weatherWidgetName" class="form-label">Widget Name:</label>
+                        <input type="text" class="form-control" id="weatherWidgetName" placeholder="e.g., Helsinki Weather">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addWeatherWidget()">Add Widget</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Widgets Grid -->
+    <div class="row" id="widgets-container">
+        <!-- Widgets will be dynamically added here -->
+    </div>
+</div>
+
+<style>
+.widget {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.widget:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.widget-header {
+    background: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.widget-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.widget-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.widget-refresh-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.widget-refresh-btn:hover {
+    color: #495057;
+    background-color: #e9ecef;
+}
+
+.widget-refresh-btn i {
+    font-size: 0.8rem;
+}
+
+.widget-last-updated {
+    font-size: 0.7rem;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.widget-last-updated i {
+    font-size: 0.7rem;
+}
+
+.widget-last-updated.fresh {
+    color: #28a745;
+}
+
+.widget-last-updated.stale {
+    color: #ffc107;
+}
+
+.widget-last-updated.error {
+    color: #dc3545;
+}
+
+.widget-body {
+    padding: 16px;
+}
+
+.widget-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.widget-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.widget-change {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.widget-change.positive {
+    color: #28a745;
+}
+
+.widget-change.negative {
+    color: #dc3545;
+}
+
+.widget-change.neutral {
+    color: #6c757d;
+}
+
+.widget-timestamp {
+    font-size: 0.6rem;
+    color: #8a8a8a;
+    font-style: italic;
+    text-align: right;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.stock-widget-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    height: 100%;
+    gap: 10px;
+}
+
+.stock-main-data {
+    flex: 1;
+    min-width: 0;
+}
+
+.stock-timestamp-column {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    min-height: 60px;
+}
+
+.database-stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    gap: 1px;
+}
+
+.stat-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-label-small {
+    color: #6c757d;
+    font-size: 0.6rem;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-value-small {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+}
+
+.widget-group {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: #f8f9fa;
+}
+
+.widget-group-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.widget-checkbox-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.widget-checkbox-item:hover {
+    background-color: #f1f3f4;
+}
+
+.widget-checkbox-item .form-check {
+    margin: 0;
+}
+
+.widget-remove-btn {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+.widget-loading {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+}
+
+.widget-error {
+    text-align: center;
+    padding: 20px;
+    color: #dc3545;
+    font-size: 0.9rem;
+}
+
+.widget-forecast {
+    border-top: 1px solid #e9ecef;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+.forecast-day {
+    padding: 2px 0;
+    color: #495057;
+}
+
+.weather-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    height: 100%;
+}
+
+.weather-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.weather-forecast {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 8px;
+    min-width: 140px;
+}
+
+.forecast-day-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 35px;
+}
+
+.forecast-day-name {
+    font-weight: bold;
+    color: #6c757d;
+    font-size: 9px;
+    margin-bottom: 2px;
+}
+
+.forecast-symbol {
+    font-size: 14px;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.forecast-temps {
+    font-size: 9px;
+    color: #495057;
+    white-space: nowrap;
+}
+
+/* CPU Widget Grid Layout */
+.cpu-widget-grid {
+    display: grid;
+    grid-template-columns: 0.8fr 2.2fr;
+    gap: 6px;
+    height: 100%;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+.cpu-info-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+.cpu-info-column .widget-value {
+    margin-bottom: 2px;
+    line-height: 1.1;
+}
+
+.cpu-info-column .widget-label {
+    margin-bottom: 4px;
+    line-height: 1.1;
+}
+
+.cpu-info-column .widget-details {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin: 0;
+    line-height: 1.1;
+}
+
+.cpu-trend-column {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 70px;
+}
+
+/* CPU Trend Chart Styles */
+.cpu-trend-chart {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 4px;
+}
+
+.cpu-trend-empty {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
+    padding: 2px;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .widget {
+        margin-bottom: 15px;
+    }
+    
+    .widget-value {
+        font-size: 1.4rem;
+    }
+    
+    .cpu-widget-grid {
+        grid-template-columns: 0.7fr 2.3fr;
+        gap: 4px;
+    }
+    
+    .cpu-trend-column {
+        min-height: 45px;
+    }
+    
+    .cpu-info-column .widget-details {
+        font-size: 0.7rem;
+    }
+}
+</style>
+
+<script>
+let widgets = [
+    // System widgets (predefined)
+    { id: 'cpu-usage', title: '🖥️ CPU Usage', type: 'system', metric: 'cpu', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'system-health', title: '🏥 System Health', type: 'system', metric: 'health', enabled: false, size: 'col-md-6', removable: false },
+    { id: 'memory-usage', title: '💾 Memory Usage', type: 'system', metric: 'memory', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'disk-usage', title: '� Disk Usage', type: 'system', metric: 'disk', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'network-usage', title: '🌐 Network Usage', type: 'system', metric: 'network', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'database-size', title: '🗄️ Database Size', type: 'system', metric: 'database', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'container-status', title: '🐳 Containers', type: 'system', metric: 'containers', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'user-count', title: '👥 Active Users', type: 'system', metric: 'users', enabled: false, size: 'col-md-3', removable: false },
+    { id: 'uptime', title: '⏱️ System Uptime', type: 'system', metric: 'uptime', enabled: false, size: 'col-md-3', removable: false }
+];
+
+let availableStocks = [];
+let availableWeatherLocations = [];
+let refreshInterval;
+
+// Sanitize widget ID for use in HTML IDs (replace special characters)
+function sanitizeWidgetId(id) {
+    return id.replace(/[^a-zA-Z0-9-_]/g, '-');
+}
+
+// Render CPU trend mini-chart
+function renderCPUTrend(trendData) {
+    if (!trendData || trendData.length === 0) {
+        return '<div class="cpu-trend-empty">No trend data</div>';
+    }
+    
+    // Create trend chart optimized for wider column layout
+    const width = 200;  // Increased width for larger column space
+    const height = 50;  // Use more vertical space in column
+    const maxUsage = Math.max(...trendData.map(d => d.usage), 100);
+    const minUsage = Math.min(...trendData.map(d => d.usage), 0);
+    const range = maxUsage - minUsage || 1;
+    
+    // Create path for trend line
+    const points = trendData.map((d, i) => {
+        const x = (i / (trendData.length - 1)) * width;
+        const y = height - ((d.usage - minUsage) / range) * height;
+        return `${x},${y}`;
+    });
+    
+    const pathData = `M ${points.join(' L ')}`;
+    
+    // Determine color based on current usage
+    const currentUsage = trendData[trendData.length - 1]?.usage || 0;
+    const color = currentUsage > 80 ? '#dc3545' : currentUsage > 60 ? '#ffc107' : '#28a745';
+    
+    return `
+        <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" class="cpu-trend-chart">
+            <path d="${pathData}" stroke="${color}" stroke-width="2.5" fill="none" opacity="0.9"/>
+            <circle cx="${points[points.length - 1]?.split(',')[0] || 0}" 
+                    cy="${points[points.length - 1]?.split(',')[1] || 0}" 
+                    r="3" fill="${color}"/>
+        </svg>
+    `;
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Dashboard loading...');
+    
+    // Set up event delegation for widget checkboxes
+    document.getElementById('widget-groups').addEventListener('change', function(e) {
+        if (e.target.type === 'checkbox' && e.target.dataset.widgetId) {
+            const widget = widgets.find(w => w.id === e.target.dataset.widgetId);
+            if (widget) {
+                widget.enabled = e.target.checked;
+                
+                // Store the current state of the settings panel
+                const settingsPanel = document.getElementById('widget-settings');
+                const wasVisible = settingsPanel && settingsPanel.style.display !== 'none';
+                
+                renderWidgets();
+                
+                // Restore settings panel visibility and prevent page scroll
+                if (wasVisible && settingsPanel) {
+                    settingsPanel.style.display = 'block';
+                    // Prevent page from scrolling to top
+                    setTimeout(() => {
+                        settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+                
+                saveWidgetSettings();
+                console.log(`Widget ${widget.id} ${widget.enabled ? 'enabled' : 'disabled'}`);
+            }
+        }
+    });
+    
+    try {
+        // Load available data sources
+        console.log('Loading available stocks and weather locations...');
+        await Promise.all([
+            loadAvailableStocks(),
+            loadAvailableWeatherLocations()
+        ]);
+        console.log('Data sources loaded');
+        
+        // Load widget settings from database
+        console.log('Loading widget settings...');
+        await loadWidgetSettings();
+        console.log('Widget settings loaded');
+        
+        // Render everything
+        console.log('Rendering widgets...');
+        renderWidgets();
+        renderWidgetSettings();
+        startAutoRefresh();
+        console.log('Dashboard loaded');
+    } catch (error) {
+        console.error('Error during dashboard initialization:', error);
+        // Fall back to basic initialization
+        renderWidgets();
+        renderWidgetSettings();
+        startAutoRefresh();
+    }
+});
+
+async function loadAvailableStocks() {
+    try {
+        const response = await fetch('/stocks/api/available');
+        
+        if (response.ok) {
+            availableStocks = await response.json();
+            console.log(`Loaded ${availableStocks.length} available stocks`);
+        } else {
+            console.error('Failed to load available stocks:', response.status);
+        }
+    } catch (error) {
+        console.error('Error loading available stocks:', error);
+    }
+}
+
+async function loadAvailableWeatherLocations() {
+    try {
+        const response = await fetch('/widgets/weather-locations');
+        const data = await response.json();
+        
+        if (data.success && data.locations) {
+            availableWeatherLocations = data.locations.map(location => {
+                const cityName = location.split(',')[0].trim();
+                return {
+                    city: cityName,
+                    fullName: location
+                };
+            });
+            console.log(`Loaded ${availableWeatherLocations.length} weather locations`);
+        } else {
+            console.error('Failed to load weather locations:', data.error);
+        }
+    } catch (error) {
+        console.error('Error loading weather locations:', error);
+    }
+}
+
+async function loadWidgetSettings() {
+    try {
+        console.log('Loading widget settings from database...');
+        // Load settings from database
+        const response = await fetch('/widget-settings');
+        // console.log('API response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // console.log('API response data:', data);
+        
+        if (data.success && data.settings) {
+            console.log('Loaded widget settings from database:', data.settings);
+            
+            // First, apply settings to existing widgets
+            let hasAnySettings = false;
+            widgets.forEach(widget => {
+                if (data.settings.hasOwnProperty(widget.id)) {
+                    widget.enabled = data.settings[widget.id];
+                    hasAnySettings = true;
+                }
+            });
+            
+            // Then, reconstruct any custom widgets that were saved but aren't in the default array
+            for (const [widgetId, enabled] of Object.entries(data.settings)) {
+                const existingWidget = widgets.find(w => w.id === widgetId);
+                if (!existingWidget) {
+                    // This is a custom widget that needs to be recreated
+                    console.log(`Reconstructing missing widget: ${widgetId}`);
+                    let customWidget = null;
+                    
+                    if (widgetId.endsWith('-stock')) {
+                        // Reconstruct stock widget
+                        const symbol = widgetId.replace('-stock', '').toUpperCase();
+                        console.log(`Reconstructing stock widget for symbol: ${symbol}`);
+                        customWidget = {
+                            id: widgetId,
+                            title: `📈 ${symbol}`,
+                            type: 'stock',
+                            symbol: symbol,
+                            enabled: enabled,
+                            size: 'col-md-3',
+                            removable: true
+                        };
+                    } else if (widgetId.endsWith('-weather')) {
+                        // Reconstruct weather widget
+                        const cityParts = widgetId.replace('-weather', '').split('-');
+                        const cityName = cityParts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+                        console.log(`Reconstructing weather widget for city: ${cityName}`);
+                        const weatherIcons = ['🌧️', '🌨️', '☀️', '⛅', '🌤️', '🌈', '❄️'];
+                        const icon = weatherIcons[Math.floor(Math.random() * weatherIcons.length)];
+                        
+                        customWidget = {
+                            id: widgetId,
+                            title: `${icon} ${cityName} Weather`,
+                            type: 'weather',
+                            location: cityName,
+                            enabled: enabled,
+                            size: 'col-md-3',
+                            removable: true
+                        };
+                    }
+                    
+                    if (customWidget) {
+                        widgets.push(customWidget);
+                        console.log(`Reconstructed custom widget: ${widgetId}`, customWidget);
+                        hasAnySettings = true;
+                    }
+                } else {
+                    console.log(`Widget ${widgetId} already exists in array`);
+                }
+            }
+            
+            console.log('Widgets after loading settings:', widgets.filter(w => w.enabled).map(w => w.id));
+            
+            // If no settings found, enable some defaults
+            if (!hasAnySettings) {
+                console.log('No existing settings found, enabling default widgets');
+                const systemWidgets = widgets.filter(w => w.type === 'system');
+                if (systemWidgets.length > 0) {
+                    systemWidgets[0].enabled = true; // Enable first system widget
+                    if (systemWidgets.length > 1) systemWidgets[1].enabled = true; // Enable second system widget
+                }
+            }
+        } else {
+            console.log('No saved widget settings found or API error:', data.error);
+            // Enable defaults
+            const systemWidgets = widgets.filter(w => w.type === 'system');
+            if (systemWidgets.length > 0) {
+                systemWidgets[0].enabled = true;
+                if (systemWidgets.length > 1) systemWidgets[1].enabled = true;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading widget settings from database:', error);
+        console.log('Falling back to default settings');
+        // Enable defaults on error
+        const systemWidgets = widgets.filter(w => w.type === 'system');
+        if (systemWidgets.length > 0) {
+            systemWidgets[0].enabled = true;
+            if (systemWidgets.length > 1) systemWidgets[1].enabled = true;
+        }
+    }
+}
+
+async function saveWidgetSettings() {
+    // Update widget enabled state from checkboxes in all groups
+    const allCheckboxes = document.querySelectorAll('#widget-groups input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+        const widget = widgets.find(w => w.id === checkbox.dataset.widgetId);
+        if (widget) {
+            widget.enabled = checkbox.checked;
+        }
+    });
+    
+    try {
+        // Save to database
+        const settings = {};
+        widgets.forEach(widget => {
+            settings[widget.id] = widget.enabled;
+        });
+        
+        console.log('Saving widget settings to database:', settings);
+        
+        const response = await fetch('/widget-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ settings: settings })
+        });
+        
+        // console.log('Save API response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Save API request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // console.log('Save API response data:', data);
+        
+        if (data.success) {
+            console.log('Widget settings saved to database:', data.message);
+        } else {
+            console.error('Failed to save widget settings:', data.error);
+        }
+    } catch (error) {
+        console.error('Error saving widget settings to database:', error);
+    }
+    
+    renderWidgets();
+}
+
+function toggleWidgetSettings() {
+    const panel = document.getElementById('widget-settings');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderWidgetSettings() {
+    // Group widgets by type
+    const stockWidgets = widgets.filter(w => w.type === 'stock');
+    const weatherWidgets = widgets.filter(w => w.type === 'weather');
+    const systemWidgets = widgets.filter(w => w.type === 'system');
+    
+    // Update stock widgets section
+    const stockContainer = document.getElementById('stock-widget-group');
+    if (stockContainer) {
+        stockContainer.innerHTML = '';
+        
+        stockWidgets.forEach(widget => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-2';
+            col.innerHTML = `
+                <div class="form-check d-flex align-items-center">
+                    <input class="form-check-input" type="checkbox" id="checkbox-${widget.id}" 
+                           data-widget-id="${widget.id}" ${widget.enabled ? 'checked' : ''}>
+                    <label class="form-check-label flex-grow-1 ms-2" for="checkbox-${widget.id}">
+                        ${widget.title}
+                    </label>
+                    ${widget.removable ? `
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                                onclick="removeWidget('${widget.id}')" style="font-size: 0.7rem;">
+                            ✕
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            stockContainer.appendChild(col);
+        });
+    }
+    
+    // Update weather widgets section
+    const weatherContainer = document.getElementById('weather-widget-group');
+    if (weatherContainer) {
+        weatherContainer.innerHTML = '';
+        
+        weatherWidgets.forEach(widget => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-2';
+            col.innerHTML = `
+                <div class="form-check d-flex align-items-center">
+                    <input class="form-check-input" type="checkbox" id="checkbox-${widget.id}" 
+                           data-widget-id="${widget.id}" ${widget.enabled ? 'checked' : ''}>
+                    <label class="form-check-label flex-grow-1 ms-2" for="checkbox-${widget.id}">
+                        ${widget.title}
+                    </label>
+                    ${widget.removable ? `
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                                onclick="removeWidget('${widget.id}')" style="font-size: 0.7rem;">
+                            ✕
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            weatherContainer.appendChild(col);
+        });
+    }
+    
+    // Update system widgets section
+    const systemContainer = document.getElementById('system-widget-group');
+    if (systemContainer) {
+        systemContainer.innerHTML = '';
+        
+        systemWidgets.forEach(widget => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-2';
+            col.innerHTML = `
+                <div class="form-check d-flex align-items-center">
+                    <input class="form-check-input" type="checkbox" id="checkbox-${widget.id}" 
+                           data-widget-id="${widget.id}" ${widget.enabled ? 'checked' : ''}>
+                    <label class="form-check-label flex-grow-1 ms-2" for="checkbox-${widget.id}">
+                        ${widget.title}
+                    </label>
+                </div>
+            `;
+            systemContainer.appendChild(col);
+        });
+    }
+}
+
+function renderWidgets() {
+    const container = document.getElementById('widgets-container');
+    container.innerHTML = '';
+    
+    const enabledWidgets = widgets.filter(w => w.enabled);
+    // console.log('Rendering widgets:', enabledWidgets.map(w => w.id));
+    
+    enabledWidgets.forEach(widget => {
+        // console.log(`Creating widget: ${widget.id}`);
+        const widgetDiv = document.createElement('div');
+        widgetDiv.className = widget.size;
+        
+        const sanitizedId = sanitizeWidgetId(widget.id);
+        
+        const widgetHTML = `
+            <div class="widget" id="widget-${sanitizedId}" data-widget-id="${widget.id}">
+                <div class="widget-header">
+                    <span class="widget-title">${widget.title}</span>
+                    <div class="widget-controls">
+                        <button class="widget-refresh-btn" onclick="refreshWidget('${widget.id}')" title="Refresh widget">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <span class="widget-last-updated" id="last-updated-${sanitizedId}">
+                            <i class="fas fa-clock"></i> Never updated
+                        </span>
+                    </div>
+                </div>
+                <div class="widget-body">
+                    <div class="widget-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        widgetDiv.innerHTML = widgetHTML;
+        container.appendChild(widgetDiv);
+        
+        // Verify the widget was actually added
+        const verifyElement = document.getElementById(`widget-${sanitizedId}`);
+        if (verifyElement) {
+            // console.log(`✓ Widget ${widget.id} successfully added to DOM with sanitized ID: widget-${sanitizedId}`);
+            const bodyCheck = verifyElement.querySelector('.widget-body');
+            if (bodyCheck) {
+                // console.log(`✓ Widget body found for ${widget.id}`);
+            } else {
+                console.error(`✗ Widget body NOT found for ${widget.id}`);
+            }
+        } else {
+            console.error(`✗ Widget ${widget.id} NOT found in DOM after adding`);
+        }
+    });
+    
+    // Load data for all enabled widgets after a longer delay to ensure DOM is ready
+    setTimeout(() => {
+        // console.log('Loading data for widgets:', enabledWidgets.map(w => w.id));
+        // console.log('Available widget elements:', Array.from(document.querySelectorAll('[id^="widget-"]')).map(el => el.id));
+        
+        enabledWidgets.forEach(widget => {
+            // console.log(`Loading data for widget: ${widget.id}`);
+            // Double-check that the widget element exists before loading data
+            const sanitizedId = sanitizeWidgetId(widget.id);
+            const widgetEl = document.getElementById(`widget-${sanitizedId}`);
+            if (widgetEl) {
+                // console.log(`Widget element found for ${widget.id}, loading data...`);
+                loadWidgetData(widget);
+            } else {
+                console.error(`Widget element ${widget.id} not found when loading data`);
+            }
+        });
+    }, 500); // Increased delay to 500ms
+}
+
+function loadWidgetData(widget) {
+    let endpoint = '';
+    
+    // Use relative URLs to avoid CSP issues
+    switch (widget.type) {
+        case 'stock':
+            endpoint = `/widgets/stock/${widget.symbol}`;
+            break;
+        case 'weather':
+            endpoint = `/widgets/weather/${widget.location}`;
+            break;
+        case 'system':
+            endpoint = `/widgets/system/${widget.metric}`;
+            break;
+        default:
+            showWidgetError(widget.id, 'Unknown widget type');
+            return;
+    }
+    
+    // console.log(`Loading widget ${widget.id} from endpoint: ${endpoint}`);
+    
+    // Add timestamp to prevent caching
+    const urlWithTimestamp = `${endpoint}?t=${Date.now()}`;
+    
+    fetch(urlWithTimestamp, {
+        method: 'GET',
+        credentials: 'same-origin',  // Include session cookies
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'  // Force fresh data
+        }
+    })
+        .then(response => {
+            // console.log(`Widget ${widget.id} response status: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // console.log(`Widget ${widget.id} data received:`, data);
+            if (data.success) {
+                renderWidgetData(widget, data.data);
+                updateWidgetTimestamp(widget.id, 'fresh');
+                // console.log(`Widget ${widget.id} updated successfully`);
+            } else {
+                console.warn(`Widget ${widget.id} returned error:`, data.error);
+                showWidgetError(widget.id, data.error || 'Failed to load data');
+                updateWidgetTimestamp(widget.id, 'error');
+            }
+        })
+        .catch(error => {
+            console.error(`Error loading widget ${widget.id}:`, error);
+            showWidgetError(widget.id, `Network error: ${error.message}`);
+            updateWidgetTimestamp(widget.id, 'error');
+        });
+}
+
+function renderWidgetData(widget, data) {
+    // console.log(`renderWidgetData called for ${widget.id}`);
+    
+    // Retry logic for DOM elements that might not be ready
+    function tryRenderWithRetry(attempts = 0) {
+        // console.log(`tryRenderWithRetry attempt ${attempts} for ${widget.id}`);
+        
+        const sanitizedId = sanitizeWidgetId(widget.id);
+        const widgetElement = document.getElementById(`widget-${sanitizedId}`);
+        if (!widgetElement) {
+            console.error(`Widget element not found: widget-${sanitizedId} (attempt ${attempts})`);
+            // console.log('All widgets in DOM:', Array.from(document.querySelectorAll('[id^="widget-"]')).map(el => el.id));
+            // console.log('Looking for element with ID:', `widget-${sanitizedId}`);
+            
+            if (attempts < 5) {
+                setTimeout(() => tryRenderWithRetry(attempts + 1), 100);
+                return;
+            } else {
+                console.error(`Failed to find widget element after 5 attempts: widget-${sanitizedId}`);
+                return;
+            }
+        }
+        
+        // console.log(`Found widget element for ${widget.id}:`, widgetElement);
+        // console.log(`Widget element innerHTML:`, widgetElement.innerHTML);
+        
+        const body = widgetElement.querySelector('.widget-body');
+        if (!body) {
+            console.error(`Widget body not found for: widget-${sanitizedId} (attempt ${attempts})`);
+            // console.log('Widget element structure:', widgetElement.outerHTML);
+            // console.log('Available children:', Array.from(widgetElement.children).map(child => ({
+            //     tagName: child.tagName,
+            //     className: child.className,
+            //     id: child.id
+            // })));
+            
+            if (attempts < 5) {
+                setTimeout(() => tryRenderWithRetry(attempts + 1), 100);
+                return;
+            } else {
+                console.error(`Failed to find widget body after 5 attempts: widget-${sanitizedId}`);
+                return;
+            }
+        }
+        
+        // Actually render the data
+        // console.log(`Rendering data for widget ${widget.id}:`, data);
+        
+        switch (widget.type) {
+            case 'stock':
+                // Format the timestamp for display
+                let timestampText = '';
+                if (data.last_updated) {
+                    const timestamp = new Date(data.last_updated);
+                    if (!isNaN(timestamp.getTime())) {
+                        timestampText = `${timestamp.toLocaleDateString()}<br>${timestamp.toLocaleTimeString()}`;
+                    } else if (typeof data.last_updated === 'string') {
+                        timestampText = data.last_updated;
+                    }
+                }
+                
+                body.innerHTML = `
+                    <div class="stock-widget-container">
+                        <div class="stock-main-data">
+                            <div class="widget-value">$${parseFloat(data.price).toFixed(2)}</div>
+                            <div class="widget-label">${data.symbol}</div>
+                            <div class="widget-change ${data.change >= 0 ? 'positive' : 'negative'}">
+                                ${data.change >= 0 ? '↗' : '↘'} ${data.change_percent.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div class="stock-timestamp-column">
+                            ${timestampText ? `<div class="widget-timestamp">${timestampText}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'weather':
+                case 'weather':
+                // Enhanced weather widget with side-by-side layout
+                // console.log('Weather widget data:', data);
+                // console.log('Forecast data:', data.forecast);
+                
+                let forecastHTML = '';
+                if (data.forecast && data.forecast.length > 0) {
+                    forecastHTML = data.forecast.map(day => 
+                        `<div class="forecast-day-compact">
+                            <div class="forecast-day-name">${day.day.substring(0, 3)}</div>
+                            <div class="forecast-symbol">${day.symbol}</div>
+                            <div class="forecast-temps">${day.temp_min}°-${day.temp_max}°</div>
+                        </div>`
+                    ).join('');
+                } else {
+                    // Fallback forecast if no data available
+                    forecastHTML = `
+                        <div class="forecast-day-compact">
+                            <div class="forecast-day-name">Tod</div>
+                            <div class="forecast-symbol">${data.symbol || '🌤️'}</div>
+                            <div class="forecast-temps">--°</div>
+                        </div>
+                        <div class="forecast-day-compact">
+                            <div class="forecast-day-name">Tom</div>
+                            <div class="forecast-symbol">${data.symbol || '🌤️'}</div>
+                            <div class="forecast-temps">--°</div>
+                        </div>
+                        <div class="forecast-day-compact">
+                            <div class="forecast-day-name">D3</div>
+                            <div class="forecast-symbol">${data.symbol || '🌤️'}</div>
+                            <div class="forecast-temps">--°</div>
+                        </div>
+                    `;
+                }
+                
+                body.innerHTML = `
+                    <div class="weather-container">
+                        <div class="weather-main">
+                            <div class="widget-value">${data.temperature}°C ${data.symbol || ''}</div>
+                            <div class="widget-label">${data.location}</div>
+                            <div class="widget-change neutral">
+                                ${data.condition} • ${data.humidity}%
+                            </div>
+                        </div>
+                        <div class="weather-forecast">
+                            ${forecastHTML}
+                        </div>`;
+                break;
+            case 'system':
+                // Special handling for health widget
+                if (widget.metric === 'health') {
+                    const statusColor = data.overall_status === 'healthy' ? 'success' : 
+                                      data.overall_status === 'warning' ? 'warning' : 'danger';
+                    
+                    let componentsHTML = '';
+                    if (data.components) {
+                        Object.entries(data.components).forEach(([component, info]) => {
+                            const componentColor = info.status === 'healthy' ? 'success' : 
+                                                 info.status === 'warning' ? 'warning' : 'danger';
+                            componentsHTML += `
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted small">${component.charAt(0).toUpperCase() + component.slice(1)}</span>
+                                    <span class="badge bg-${componentColor} small">${info.status}</span>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    body.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="widget-label">Overall Status</span>
+                            <span class="badge bg-${statusColor}">${data.overall_status}</span>
+                        </div>
+                        ${componentsHTML}
+                    `;
+                } else if (widget.metric === 'cpu' && data.trend) {
+                    // Special CPU widget with trend chart - side-by-side layout
+                    const trendHTML = renderCPUTrend(data.trend);
+                    body.innerHTML = `
+                        <div class="cpu-widget-grid">
+                            <div class="cpu-info-column">
+                                <div class="widget-value">${data.value}</div>
+                                <div class="widget-label">${data.label}</div>
+                                <div class="widget-change neutral">${data.details || ''}</div>
+                            </div>
+                            <div class="cpu-trend-column">
+                                ${trendHTML}
+                            </div>
+                        </div>
+                    `;
+                } else if (widget.metric === 'database' && data.extended_stats) {
+                    // Enhanced database widget with 4-column layout - stats only
+                    body.innerHTML = `
+                        <div class="widget-label" style="margin-bottom: 12px;">Database Stats</div>
+                        <div class="database-stats-row">
+                            <div class="stat-column">
+                                <span class="stat-value-small">${data.extended_stats.total_rows.toLocaleString()}</span>
+                                <span class="stat-label-small">Rows</span>
+                            </div>
+                            <div class="stat-column">
+                                <span class="stat-value-small">${data.extended_stats.active_connections}</span>
+                                <span class="stat-label-small">Conn</span>
+                            </div>
+                            <div class="stat-column">
+                                <span class="stat-value-small">${data.extended_stats.cache_hit_ratio}%</span>
+                                <span class="stat-label-small">Cache</span>
+                            </div>
+                            <div class="stat-column">
+                                <span class="stat-value-small">PG</span>
+                                <span class="stat-label-small">Type</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Regular system widgets
+                    body.innerHTML = `
+                        <div class="widget-value">${data.value}</div>
+                        <div class="widget-label">${data.label}</div>
+                        <div class="widget-change neutral">
+                            ${data.details || ''}
+                        </div>
+                    `;
+                }
+                break;
+        }
+        
+        // console.log(`Successfully rendered widget ${widget.id}`);
+    }
+    
+    tryRenderWithRetry();
+}
+
+function showWidgetError(widgetId, message) {
+    // console.log(`showWidgetError called for ${widgetId}: ${message}`);
+    
+    // Retry logic for DOM elements that might not be ready
+    function tryShowErrorWithRetry(attempts = 0) {
+        const sanitizedId = sanitizeWidgetId(widgetId);
+        const widgetElement = document.getElementById(`widget-${sanitizedId}`);
+        if (!widgetElement) {
+            console.error(`Widget element not found: widget-${sanitizedId} (attempt ${attempts})`);
+            if (attempts < 5) {
+                setTimeout(() => tryShowErrorWithRetry(attempts + 1), 100);
+                return;
+            } else {
+                console.error(`Failed to find widget element after 5 attempts: widget-${sanitizedId}`);
+                // console.log('Available widgets in DOM:', Array.from(document.querySelectorAll('[id^="widget-"]')).map(el => el.id));
+                return;
+            }
+        }
+        
+        const body = widgetElement.querySelector('.widget-body');
+        if (!body) {
+            console.error(`Widget body not found for: widget-${sanitizedId} (attempt ${attempts})`);
+            if (attempts < 5) {
+                setTimeout(() => tryShowErrorWithRetry(attempts + 1), 100);
+                return;
+            } else {
+                console.error(`Failed to find widget body after 5 attempts: widget-${widgetId}`);
+                // console.log('Widget element structure:', widgetElement.innerHTML);
+                return;
+            }
+        }
+        
+        body.innerHTML = `
+            <div class="widget-error">
+                <i class="fas fa-exclamation-triangle"></i><br>
+                ${message}
+            </div>
+        `;
+        // console.log(`Error displayed for widget ${widgetId}`);
+    }
+    
+    tryShowErrorWithRetry();
+}
+
+function showAddStockWidget() {
+    const modal = new bootstrap.Modal(document.getElementById('addStockModal'));
+    
+    // Populate stock selector
+    const select = document.getElementById('stockSelect');
+    select.innerHTML = '<option value="">Select a stock...</option>';
+    
+    // Filter out stocks that already have widgets
+    const existingStocks = widgets.filter(w => w.type === 'stock').map(w => w.symbol);
+    const availableToAdd = availableStocks.filter(stock => !existingStocks.includes(stock.symbol));
+    
+    availableToAdd.forEach(stock => {
+        const option = document.createElement('option');
+        option.value = stock.symbol;
+        option.textContent = `${stock.symbol} - ${stock.name || stock.symbol}`;
+        select.appendChild(option);
+    });
+    
+    modal.show();
+}
+
+function addStockWidget() {
+    const select = document.getElementById('stockSelect');
+    const symbol = select.value;
+    
+    if (!symbol) {
+        alert('Please select a stock');
+        return;
+    }
+    
+    const stock = availableStocks.find(s => s.symbol === symbol);
+    if (!stock) {
+        alert('Invalid stock selection');
+        return;
+    }
+    
+    // Create new widget
+    const newWidget = {
+        id: `${symbol.toLowerCase()}-stock`,
+        title: `📈 ${symbol}`,
+        type: 'stock',
+        symbol: symbol,
+        enabled: true,
+        size: 'col-md-3',
+        removable: true
+    };
+    
+    widgets.push(newWidget);
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addStockModal'));
+    modal.hide();
+    
+    // Refresh display
+    renderWidgetSettings();
+    renderWidgets();
+    
+    // Keep widget settings panel open
+    const settingsPanel = document.getElementById('widget-settings');
+    if (settingsPanel) {
+        settingsPanel.style.display = 'block';
+    }
+    
+    // Save to database
+    saveWidgetSettings();
+    
+    // console.log(`Added stock widget for ${symbol}`);
+}
+
+function showAddWeatherWidget() {
+    const modal = new bootstrap.Modal(document.getElementById('addWeatherModal'));
+    
+    // Populate weather location selector
+    const select = document.getElementById('weatherSelect');
+    select.innerHTML = '<option value="">Select a location...</option>';
+    
+    // Filter out locations that already have widgets
+    const existingLocations = widgets.filter(w => w.type === 'weather').map(w => w.location);
+    const availableToAdd = availableWeatherLocations.filter(loc => !existingLocations.includes(loc.city));
+    
+    availableToAdd.forEach(location => {
+        const option = document.createElement('option');
+        option.value = location.city;
+        option.textContent = location.fullName;
+        select.appendChild(option);
+    });
+    
+    modal.show();
+}
+
+function addWeatherWidget() {
+    const select = document.getElementById('weatherSelect');
+    const cityName = select.value;
+    
+    if (!cityName) {
+        alert('Please select a location');
+        return;
+    }
+    
+    const location = availableWeatherLocations.find(l => l.city === cityName);
+    if (!location) {
+        alert('Invalid location selection');
+        return;
+    }
+    
+    // Weather icons for variety
+    const weatherIcons = ['🌧️', '🌨️', '☀️', '⛅', '🌤️', '🌈', '❄️'];
+    const icon = weatherIcons[Math.floor(Math.random() * weatherIcons.length)];
+    
+    // Create new widget
+    const newWidget = {
+        id: `${cityName.toLowerCase().replace(/\s+/g, '-')}-weather`,
+        title: `${icon} ${cityName} Weather`,
+        type: 'weather',
+        location: cityName,
+        enabled: true,
+        size: 'col-md-3',
+        removable: true
+    };
+    
+    widgets.push(newWidget);
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addWeatherModal'));
+    modal.hide();
+    
+    // Refresh display
+    renderWidgetSettings();
+    renderWidgets();
+    
+    // Keep widget settings panel open
+    const settingsPanel = document.getElementById('widget-settings');
+    if (settingsPanel) {
+        settingsPanel.style.display = 'block';
+    }
+    
+    // Save to database
+    saveWidgetSettings();
+    
+    // console.log(`Added weather widget for ${cityName}`);
+}
+
+function removeWidget(widgetId) {
+    if (confirm('Are you sure you want to remove this widget?')) {
+        widgets = widgets.filter(w => w.id !== widgetId);
+        renderWidgetSettings();
+        renderWidgets();
+        saveWidgetSettings();
+        // console.log(`Removed widget: ${widgetId}`);
+    }
+}
+
+function startAutoRefresh() {
+    // Different refresh intervals for different widget types
+    const REFRESH_INTERVALS = {
+        system: 5000,    // 5 seconds for most system metrics
+        cpu: 2000,       // 2 seconds for CPU trend
+        stock: 30000,    // 30 seconds for stock data
+        weather: 600000  // 10 minutes for weather data
+    };
+    
+    // Track last refresh time for each widget type and individual widgets
+    const lastRefresh = {
+        system: 0,
+        cpu: 0,
+        stock: 0,
+        weather: 0
+    };
+    
+    // Use the fastest interval as the base (CPU widgets = 2 seconds)
+    refreshInterval = setInterval(() => {
+        const now = Date.now();
+        const enabledWidgets = widgets.filter(w => w.enabled);
+        
+        enabledWidgets.forEach(widget => {
+            // Special handling for CPU widgets
+            const refreshKey = (widget.type === 'system' && widget.metric === 'cpu') ? 'cpu' : widget.type;
+            const interval = REFRESH_INTERVALS[refreshKey] || REFRESH_INTERVALS.system;
+            const timeSinceLastRefresh = now - (lastRefresh[refreshKey] || 0);
+            
+            if (timeSinceLastRefresh >= interval) {
+                // console.log(`Refreshing ${widget.type} widget: ${widget.id} (${widget.metric || ''}) - ${timeSinceLastRefresh}ms since last refresh`);
+                loadWidgetData(widget);
+                lastRefresh[refreshKey] = now;
+            }
+        });
+    }, 2000); // Check every 2 seconds for CPU responsiveness
+}
+
+// Clean up interval on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+
+// Widget refresh functionality
+async function refreshWidget(widgetId) {
+    const widget = widgets.find(w => w.id === widgetId);
+    if (!widget || !widget.enabled) return;
+
+    try {
+        // Update the refresh button to show loading state
+        const sanitizedId = sanitizeWidgetId(widgetId);
+        const widgetElement = document.getElementById(`widget-${sanitizedId}`);
+        const refreshBtn = widgetElement ? widgetElement.querySelector('.widget-refresh-btn') : null;
+        if (!refreshBtn) {
+            throw new Error(`Refresh button not found for widget ${widgetId}`);
+        }
+        const icon = refreshBtn.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-spinner fa-spin';
+        refreshBtn.disabled = true;
+
+        // Determine endpoint based on widget type
+        let endpoint = '';
+        switch (widget.type) {
+            case 'stock':
+                endpoint = `/widgets/stock/${widget.symbol}`;
+                break;
+            case 'weather':
+                endpoint = `/widgets/weather/${widget.location}`;
+                break;
+            case 'system':
+                endpoint = `/widgets/system/${widget.metric}`;
+                break;
+            default:
+                throw new Error('Unknown widget type');
+        }
+
+        // Fetch fresh data
+        const response = await fetch(endpoint);
+        const data = await response.json();
+
+        // Update the widget content using existing function
+        if (data.success) {
+            renderWidgetData(widget, data.data);
+            updateWidgetTimestamp(widgetId, 'fresh');
+        } else {
+            showWidgetError(widgetId, data.error || 'Failed to load data');
+            updateWidgetTimestamp(widgetId, 'error');
+        }
+
+        // Reset the refresh button
+        icon.className = originalClass;
+        refreshBtn.disabled = false;
+
+    } catch (error) {
+        console.error(`Error refreshing widget ${widgetId}:`, error);
+        
+        // Reset the refresh button
+        const sanitizedId = sanitizeWidgetId(widgetId);
+        const widgetElement = document.getElementById(`widget-${sanitizedId}`);
+        const refreshBtn = widgetElement ? widgetElement.querySelector('.widget-refresh-btn') : null;
+        if (refreshBtn) {
+            const icon = refreshBtn.querySelector('i');
+            icon.className = 'fas fa-exclamation-triangle';
+            setTimeout(() => {
+                icon.className = 'fas fa-sync-alt';
+                refreshBtn.disabled = false;
+            }, 2000);
+        }
+
+        // Update timestamp with error state
+        updateWidgetTimestamp(widgetId, 'error');
+    }
+}
+
+function updateWidgetTimestamp(widgetId, status = 'fresh') {
+    const sanitizedId = sanitizeWidgetId(widgetId);
+    const timestampEl = document.getElementById(`last-updated-${sanitizedId}`);
+    if (timestampEl) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { 
+            hour12: false, 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        timestampEl.innerHTML = `<i class="fas fa-clock"></i> ${timeStr}`;
+        timestampEl.className = `widget-last-updated ${status}`;
+        // console.log(`Updated timestamp for widget ${widgetId}: ${timeStr}`);
+    } else {
+        console.error(`Timestamp element not found for widget: ${widgetId} (sanitized: ${sanitizedId})`);
+        // console.log('Available timestamp elements:', Array.from(document.querySelectorAll('.widget-last-updated')).map(el => el.id));
+    }
+}
+</script>
+
+{% else %}
+<div class="container">
+    <div class="card">
+        <div class="card-body text-center">
+            <h2>🔒 Authentication Required</h2>
+            <p>Please log in to access the dashboard widgets.</p>
+            <div class="mt-3">
+                <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                <a href="{{ url_for('register') }}" class="btn btn-secondary">Register</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

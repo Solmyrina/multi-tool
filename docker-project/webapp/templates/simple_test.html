@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Animation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        
+        .test-box {
+            width: 100px;
+            height: 100px;
+            background: red;
+            margin: 20px;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .pump-demo {
+            width: 80px;
+            height: 60px;
+            background: #3498db;
+            border-radius: 50%;
+            border: 3px solid #2980b9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 20px;
+        }
+
+        .pump-impeller {
+            width: 30px;
+            height: 30px;
+            border: 3px solid white;
+            border-radius: 50%;
+            position: relative;
+            animation: rotate 1s linear infinite;
+        }
+
+        .pump-impeller::before,
+        .pump-impeller::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 2px;
+        }
+
+        .pump-impeller::before {
+            width: 24px;
+            height: 3px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .pump-impeller::after {
+            width: 3px;
+            height: 24px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .flow-arrow {
+            width: 0;
+            height: 0;
+            border-left: 20px solid #27ae60;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            animation: pulse 1s ease-in-out infinite;
+            margin: 20px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <h1>CSS Animation Test</h1>
+    <p>If you can see animations below, CSS animations are working:</p>
+    
+    <h2>1. Red Spinning Box</h2>
+    <div class="test-box"></div>
+    
+    <h2>2. Blue Pump with Rotating Impeller</h2>
+    <div class="pump-demo">
+        <div class="pump-impeller"></div>
+    </div>
+    
+    <h2>3. Pulsing Green Arrow</h2>
+    <div class="flow-arrow"></div>
+    
+    <script>
+        console.log('Simple test page loaded successfully');
+    </script>
+</body>
+</html>

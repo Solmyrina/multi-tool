@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Database Administration - Docker Web App{% endblock %}
+
+{% block content %}
+<div class="card" style="padding: 0.75rem;">
+    <h2 style="margin: 0 0 0.5rem 0;">Database Administration</h2>
+    <p style="margin: 0 0 0.5rem 0;">Comprehensive database management and monitoring tools.</p>
+    
+    <!-- Tab Navigation -->
+    <div class="tab-navigation" style="display: flex; gap: 0.25rem; margin: 0.5rem 0; border-bottom: 2px solid #ddd;">
+        <button class="tab-btn active" onclick="showTab('pgadmin')" id="tab-pgadmin" style="padding: 0.5rem 1rem; border: none; background: #3498db; color: white; border-radius: 4px 4px 0 0; cursor: pointer; font-weight: bold;">
+            🗄️ pgAdmin Interface
+        </button>
+        <button class="tab-btn" onclick="showTab('overview')" id="tab-overview" style="padding: 0.5rem 1rem; border: none; background: #95a5a6; color: white; border-radius: 4px 4px 0 0; cursor: pointer;">
+            📊 Database Overview
+        </button>
+        <button class="tab-btn" onclick="showTab('statistics')" id="tab-statistics" style="padding: 0.5rem 1rem; border: none; background: #95a5a6; color: white; border-radius: 4px 4px 0 0; cursor: pointer;">
+            📈 Table Statistics
+        </button>
+    </div>
+    
+    <!-- Tab 1: pgAdmin Interface -->
+    <div id="tab-content-pgadmin" class="tab-content" style="display: block;">
+        <div id="embedded-pgadmin">
+            <iframe 
+                id="pgadmin-frame"
+                src="/pgadmin/browser/" 
+                style="width: 100%; height: calc(100vh - 120px); border: none; border-radius: 4px;"
+                title="pgAdmin4 Interface"
+                onload="updateIframeStatus('loaded')"
+                onerror="updateIframeStatus('error')"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation">
+                <p>Your browser doesn't support iframes. <a href="/pgadmin/" target="_blank">Open pgAdmin4 in a new tab</a></p>
+            </iframe>
+        </div>
+    </div>
+    
+    <!-- Tab 2: Database Overview -->
+    <div id="tab-content-overview" class="tab-content" style="display: none;">
+        <h3 style="margin: 0.5rem 0 0.25rem 0;">Database Overview</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.5rem; margin: 0.5rem 0;">
+            <div style="background: #e8f5e8; padding: 0.5rem; border-radius: 4px;">
+                <h4 style="color: #27ae60; margin: 0 0 0.25rem 0;">Database Server</h4>
+                <p style="margin: 0.25rem 0 0 0;">PostgreSQL 15</p>
+                <p style="margin: 0; font-size: 0.85em; color: #666;">Host: database:5432</p>
+            </div>
+            <div style="background: #e8f4fd; padding: 0.5rem; border-radius: 4px;">
+                <h4 style="color: #3498db; margin: 0 0 0.25rem 0;">Database Name</h4>
+                <p style="margin: 0.25rem 0 0 0;">webapp_db</p>
+                <p style="margin: 0; font-size: 0.85em; color: #666;">Main application database</p>
+            </div>
+            <div style="background: #fdf4e8; padding: 0.5rem; border-radius: 4px;">
+                <h4 style="color: #f39c12; margin: 0 0 0.25rem 0;">User Account</h4>
+                <p style="margin: 0.25rem 0 0 0;">root</p>
+                <p style="margin: 0; font-size: 0.85em; color: #666;">Database administrator</p>
+            </div>
+            <div style="background: #fdeaea; padding: 0.5rem; border-radius: 4px;">
+                <h4 style="color: #e74c3c; margin: 0 0 0.25rem 0;">Access Level</h4>
+                <p style="margin: 0.25rem 0 0 0;">{{ current_user.level_name }}</p>
+                <p style="margin: 0; font-size: 0.85em; color: #666;">Your admin level</p>
+            </div>
+        </div>
+        
+        <h3 style="margin: 1rem 0 0.5rem 0;">Database Tables</h3>
+        <p style="margin: 0 0 0.5rem 0;">Main tables in the webapp_db database:</p>
+        <div style="overflow-x: auto; margin-top: 0.5rem;">
+            <table class="table" style="margin: 0;">
+                <thead>
+                    <tr>
+                        <th>Table Name</th>
+                        <th>Purpose</th>
+                        <th>Key Fields</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>users</code></td>
+                        <td>User accounts and authentication</td>
+                        <td>id, username, email, password_hash, user_level_id</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_levels</code></td>
+                        <td>User permission levels and roles</td>
+                        <td>id, level_name, level_code, permissions</td>
+                    </tr>
+                    <tr>
+                        <td><code>login_attempts</code></td>
+                        <td>Security logging for authentication</td>
+                        <td>id, username, ip_address, success, attempted_at</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_sessions</code></td>
+                        <td>Active user sessions</td>
+                        <td>id, user_id, session_token, expires_at</td>
+                    </tr>
+                    <tr>
+                        <td><code>stocks</code></td>
+                        <td>Stock symbols and metadata</td>
+                        <td>id, symbol, name, exchange, market_cap</td>
+                    </tr>
+                    <tr>
+                        <td><code>stock_prices</code></td>
+                        <td>Historical stock price data</td>
+                        <td>id, stock_id, datetime, open_price, close_price, volume</td>
+                    </tr>
+                    <tr>
+                        <td><code>data_sources</code></td>
+                        <td>Data source tracking</td>
+                        <td>id, source_name, api_endpoint, last_fetch</td>
+                    </tr>
+                    <tr>
+                        <td><code>stock_fetch_logs</code></td>
+                        <td>Data fetching operation logs</td>
+                        <td>id, stock_id, fetch_start, records_fetched, status</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Tab 3: Table Statistics -->
+    <div id="tab-content-statistics" class="tab-content" style="display: none;">
+        <h3 style="margin: 0.5rem 0 0.25rem 0;">Database Table Statistics</h3>
+        <p style="margin: 0 0 0.5rem 0;">Detailed information about table sizes, row counts, and disk usage.</p>
+        
+        <div style="margin: 0.5rem 0;">
+            <button onclick="loadTableStatistics()" class="btn" style="background: #27ae60;">
+                🔄 Refresh Statistics
+            </button>
+        </div>
+        
+        <div id="table-statistics-loading" style="display: none; padding: 1rem; background: #f8f9fa; border-radius: 4px; margin: 0.5rem 0; text-align: center;">
+            <p style="margin: 0;">🔄 Loading table statistics...</p>
+        </div>
+        
+        <div id="table-statistics-content" style="margin-top: 0.5rem;">
+            <div style="overflow-x: auto;">
+                <table class="table" style="margin: 0;" id="statistics-table">
+                    <thead>
+                        <tr>
+                            <th>Table Name</th>
+                            <th>Row Count</th>
+                            <th>Total Size</th>
+                            <th>Data Size</th>
+                            <th>Index Size</th>
+                            <th>Last Auto-Analyze</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statistics-tbody">
+                        <tr>
+                            <td colspan="6" class="loading-placeholder">Click "Refresh Statistics" to load table data</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="database-summary" style="margin-top: 1rem; display: none;">
+            <h4 style="margin: 0.5rem 0 0.25rem 0;">Database Summary</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
+                <div style="background: #e8f5e8; padding: 0.5rem; border-radius: 4px;">
+                    <h5 style="color: #27ae60; margin: 0 0 0.25rem 0;">Total Tables</h5>
+                    <p style="margin: 0; font-size: 1.2em; font-weight: bold;" id="total-tables">-</p>
+                </div>
+                <div style="background: #e8f4fd; padding: 0.5rem; border-radius: 4px;">
+                    <h5 style="color: #3498db; margin: 0 0 0.25rem 0;">Total Rows</h5>
+                    <p style="margin: 0; font-size: 1.2em; font-weight: bold;" id="total-rows">-</p>
+                </div>
+                <div style="background: #fdf4e8; padding: 0.5rem; border-radius: 4px;">
+                    <h5 style="color: #f39c12; margin: 0 0 0.25rem 0;">Total Size</h5>
+                    <p style="margin: 0; font-size: 1.2em; font-weight: bold;" id="total-size">-</p>
+                </div>
+                <div style="background: #fdeaea; padding: 0.5rem; border-radius: 4px;">
+                    <h5 style="color: #e74c3c; margin: 0 0 0.25rem 0;">Largest Table</h5>
+                    <p style="margin: 0; font-size: 1.2em; font-weight: bold;" id="largest-table">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab switching functionality
+function showTab(tabName) {
+    // Hide all tab contents
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    // Remove active class from all tab buttons
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = '#95a5a6';
+    });
+    
+    // Show selected tab content
+    document.getElementById('tab-content-' + tabName).style.display = 'block';
+    
+    // Make selected tab button active
+    const activeButton = document.getElementById('tab-' + tabName);
+    activeButton.classList.add('active');
+    activeButton.style.background = '#3498db';
+    
+    // Auto-load data for statistics tab
+    if (tabName === 'statistics') {
+        loadTableStatistics();
+    }
+}
+
+// Update iframe status
+function updateIframeStatus(status) {
+    // Status function kept for iframe onload/onerror events
+    console.log('pgAdmin iframe status:', status);
+}
+
+// Reload iframe
+function reloadFrame() {
+    const iframe = document.getElementById('pgadmin-frame');
+    iframe.src = iframe.src;
+    updateIframeStatus('loading...');
+}
+
+// Update iframe status
+function updateIframeStatus(status) {
+    const statusSpan = document.getElementById('iframe-status');
+    if (!statusSpan) return;
+    
+    if (status === 'loaded') {
+        statusSpan.textContent = 'Successfully loaded';
+        statusSpan.style.color = '#27ae60';
+    } else if (status === 'error') {
+        statusSpan.textContent = 'Failed to load';
+        statusSpan.style.color = '#e74c3c';
+    } else {
+        statusSpan.textContent = status;
+        statusSpan.style.color = '#f39c12';
+    }
+}
+
+// Helper functions for size conversion
+function sizeToBytes(sizeStr) {
+    const match = sizeStr.match(/^([\d.]+)\s*(\w+)$/);
+    if (!match) return 0;
+    
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase();
+    
+    switch(unit) {
+        case 'bytes': return value;
+        case 'kb': return value * 1024;
+        case 'mb': return value * 1024 * 1024;
+        case 'gb': return value * 1024 * 1024 * 1024;
+        case 'tb': return value * 1024 * 1024 * 1024 * 1024;
+        default: return value;
+    }
+}
+
+// Function to format bytes back to human readable
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 bytes';
+    
+    const k = 1024;
+    const sizes = ['bytes', 'kB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Load table statistics
+function loadTableStatistics() {
+    const loadingDiv = document.getElementById('table-statistics-loading');
+    const tbody = document.getElementById('statistics-tbody');
+    const summaryDiv = document.getElementById('database-summary');
+    
+    // Show loading indicator
+    loadingDiv.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-placeholder">Loading table statistics...</td></tr>';
+    summaryDiv.style.display = 'none';
+    
+    // Fetch table statistics from backend
+    fetch('/webapp/api/table-statistics')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadingDiv.style.display = 'none';
+            summaryDiv.style.display = 'block';
+            
+            if (data.error) {
+                tbody.innerHTML = '<tr><td colspan="6" style="color: #e74c3c;">Error: ' + data.error + '</td></tr>';
+                return;
+            }
+            
+            // Clear and populate table
+            tbody.innerHTML = '';
+            let totalRows = 0;
+            let totalSize = 0;
+            let largestTable = { name: '', size: 0 };
+            
+            data.tables.forEach(table => {
+                const row = document.createElement('tr');
+                
+                const totalSizeBytes = sizeToBytes(table.total_size);
+                
+                totalRows += parseInt(table.row_count);
+                totalSize += totalSizeBytes;
+                
+                if (totalSizeBytes > largestTable.size) {
+                    largestTable = { name: table.table_name, size: totalSizeBytes };
+                }
+                
+                row.innerHTML = `
+                    <td><code>${table.table_name}</code></td>
+                    <td>${parseInt(table.row_count).toLocaleString()}</td>
+                    <td>${table.total_size}</td>
+                    <td>${table.data_size}</td>
+                    <td>${table.index_size}</td>
+                    <td>${table.last_autoanalyze || 'N/A'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Update summary
+            document.getElementById('total-tables').textContent = data.tables.length;
+            document.getElementById('total-rows').textContent = totalRows.toLocaleString();
+            document.getElementById('total-size').textContent = formatBytes(totalSize);
+            document.getElementById('largest-table').textContent = largestTable.name + ' (' + formatBytes(largestTable.size) + ')';
+        })
+        .catch(error => {
+            loadingDiv.style.display = 'none';
+            tbody.innerHTML = '<tr><td colspan="6" style="color: #e74c3c;">Error loading statistics: ' + error.message + '<br>Details: ' + error.toString() + '</td></tr>';
+            console.error('Table statistics error:', error);
+        });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // pgAdmin iframe will load automatically via src attribute
+    console.log('Database administration page loaded');
+});
+</script>
+
+{% endblock %}

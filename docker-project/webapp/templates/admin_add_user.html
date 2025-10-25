@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Add New User - Admin{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Add New User</h1>
+    <a href="{{ url_for('admin_users') }}" class="btn" style="margin-bottom: 1rem;">← Back to User Management</a>
+</div>
+
+<div class="card">
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" name="username" id="username" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" class="form-control" required>
+        </div>
+                            <div class="mb-3">
+                        <label for="user_level_id" class="form-label">User Level</label>
+                        <!-- DEBUG: User levels count: {{ user_levels|length }} -->
+                        {% if user_levels %}
+                            <!-- DEBUG: First level: {{ user_levels[0] }} -->
+                        {% endif %}
+                        <select class="form-select" id="user_level_id" name="user_level_id" required>
+                            <option value="">Select User Level</option>
+                            {% for level in user_levels %}
+                            <option value="{{ level.id }}">{{ level.level_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+        <button type="submit" class="btn btn-primary">Create User</button>
+    </form>
+    {% if error %}
+    <div class="alert alert-danger" style="margin-top: 1rem;">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="alert alert-success" style="margin-top: 1rem;">{{ success }}</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,2244 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    #strategySelection {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+    }
+    
+    #strategySelection h6 {
+        font-size: 0.9rem;
+        margin-bottom: 3px;
+    }
+    
+    #strategyDropdown {
+        font-size: 0.85rem;
+        padding: 3px 6px;
+        height: auto;
+    }
+    
+    #strategyDescription {
+        margin-top: 3px;
+        font-size: 0.75rem;
+        line-height: 1.3;
+    }
+    
+    #strategyDescription .badge {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+        margin-left: 3px;
+    }
+    
+    .parameter-group {
+        margin-bottom: 0.75rem;
+    }
+    
+    .parameter-group label {
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        display: block;
+        font-size: 0.85rem;
+    }
+    
+    .parameter-group input,
+    .parameter-group select {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+        height: auto;
+    }
+    
+    .parameter-help {
+        font-size: 0.7em;
+        color: #6c757d;
+        margin-top: 0.15rem;
+        line-height: 1.2;
+    }
+    
+    #parameterInputs .row {
+        margin-left: -5px;
+        margin-right: -5px;
+    }
+    
+    #parameterInputs .col-md-4 {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+    
+    .backtest-results {
+        display: none;
+        margin-top: 10px;
+    }
+    
+    .results-summary {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px;
+        margin-bottom: 8px;
+    }
+    
+    .results-summary h4 {
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+    }
+    
+    .results-summary .row {
+        margin-left: -3px;
+        margin-right: -3px;
+    }
+    
+    .results-summary .col-md-3,
+    .results-summary .col-lg-3 {
+        padding-left: 3px;
+        padding-right: 3px;
+        margin-bottom: 5px;
+    }
+    
+    .metric-card {
+        text-align: center;
+        padding: 5px 4px;
+        border: 1px solid #dee2e6;
+        border-radius: 3px;
+        background: white;
+    }
+    
+    .metric-value {
+        font-size: 1em;
+        font-weight: bold;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.7em;
+        line-height: 1.1;
+    }
+    
+    .positive {
+        color: #28a745;
+    }
+    
+    .negative {
+        color: #dc3545;
+    }
+    
+    .crypto-results-table {
+        font-size: 0.85em;
+        margin-bottom: 0;
+    }
+    
+    .crypto-results-table th,
+    .crypto-results-table td {
+        padding: 6px 8px;
+        vertical-align: middle;
+    }
+    
+    .crypto-results-table thead th {
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    
+    /* Results card styling */
+    .backtest-results .card {
+        margin-bottom: 8px;
+    }
+    
+    .backtest-results .card-header {
+        padding: 5px 8px;
+    }
+    
+    .backtest-results .card-header h5 {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+    
+    .backtest-results .card-body {
+        padding: 6px;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .progress-bar-wrapper {
+        margin-top: 10px;
+        display: none;
+    }
+    
+    .run-mode-selection {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+    }
+    
+    .run-mode-selection h6 {
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+    }
+    
+    .run-mode-selection .form-check {
+        margin-bottom: 2px;
+    }
+    
+    .run-mode-selection .custom-control {
+        margin-bottom: 2px;
+    }
+    
+    .run-mode-selection .custom-control-label {
+        font-size: 0.85rem;
+    }
+    
+    .time-range-selection {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+    }
+    
+    .time-range-selection h6 {
+        font-size: 0.9rem;
+        margin-bottom: 2px;
+    }
+    
+    .time-range-selection small {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
+        display: block;
+    }
+    
+    .time-range-selection .form-group {
+        margin-bottom: 4px;
+    }
+    
+    .time-range-selection label {
+        font-size: 0.8rem;
+        margin-bottom: 1px;
+    }
+    
+    .time-range-selection input {
+        font-size: 0.85rem;
+        padding: 3px 6px;
+        height: auto;
+    }
+    
+    .time-range-selection .btn {
+        padding: 4px 8px;
+        margin-top: 4px;
+    }
+    
+    .quick-range-buttons {
+        margin-top: 3px;
+        margin-bottom: 4px;
+    }
+    
+    .quick-range-buttons .btn {
+        padding: 3px 5px;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
+        flex: 1;
+    }
+    
+    .quick-range-buttons .btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+        font-weight: 500;
+    }
+    
+    .quick-range-buttons .btn:hover:not(.active) {
+        background-color: #e7f1ff;
+        border-color: #007bff;
+    }
+    
+    #strategyParameters {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+    }
+    
+    #strategyParameters h6 {
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+    
+    #strategyParameters .btn {
+        padding: 5px 10px;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+    
+    #singleCryptoSelection {
+        background: #f8f9fa;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+    }
+    
+    #singleCryptoSelection label {
+        font-size: 0.85rem;
+        margin-bottom: 2px;
+    }
+    
+    #singleCryptoSelection select {
+        font-size: 0.85rem;
+        padding: 3px 6px;
+        height: auto;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    
+    /* Reduce card padding */
+    .col-lg-4 .card-header {
+        padding: 8px 12px;
+    }
+    
+    .col-lg-4 .card-header h5 {
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+    
+    .col-lg-4 .card-body {
+        padding: 10px;
+    }
+    
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 20px;
+    }
+    
+    .sortable-header:hover {
+        background-color: #e9ecef;
+    }
+    
+    .sortable-header::after {
+        content: '⇅';
+        position: absolute;
+        right: 5px;
+        opacity: 0.3;
+        font-size: 0.8em;
+    }
+    
+    .sortable-header.sort-asc::after {
+        content: '↑';
+        opacity: 1;
+    }
+    
+    .sortable-header.sort-desc::after {
+        content: '↓';
+        opacity: 1;
+    }
+    
+    /* Hover tooltip for crypto trends */
+    #cryptoTrendTooltip {
+        position: fixed;
+        display: none;
+        background: white;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 10000;
+        pointer-events: none;
+        min-width: 400px;
+        max-width: 500px;
+    }
+    
+    #cryptoTrendTooltip.visible {
+        display: block;
+    }
+    
+    .tooltip-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+    }
+    
+    .tooltip-title {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .tooltip-symbol {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+    
+    .tooltip-chart {
+        margin: 10px 0;
+        height: 150px;
+        position: relative;
+    }
+    
+    .tooltip-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        font-size: 0.85em;
+    }
+    
+    .tooltip-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .tooltip-stat-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .tooltip-stat-value {
+        font-weight: bold;
+    }
+    
+    .tooltip-trades {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .tooltip-trades-title {
+        font-size: 0.9em;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #495057;
+    }
+    
+    .tooltip-trade-list {
+        max-height: 100px;
+        overflow-y: auto;
+        font-size: 0.8em;
+    }
+    
+    .tooltip-trade-item {
+        padding: 3px 0;
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .tooltip-trade-item:last-child {
+        border-bottom: none;
+    }
+    
+    .trade-buy {
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .trade-sell {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .results-table-row {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .results-table-row:hover {
+        background-color: #e3f2fd !important;
+    }
+    
+    .loading-chart {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 150px;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 style="font-size: 1.5rem; margin-bottom: 0;">
+                    <i class="fas fa-chart-line"></i>
+                    Cryptocurrency Investment Strategy Backtesting
+                </h2>
+                <div>
+                    <span class="badge badge-info" id="crypto-count" style="font-size: 0.75rem;">Loading...</span>
+                    <span class="badge badge-secondary" id="data-range" style="font-size: 0.75rem;">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Strategy Selection Panel -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cogs"></i> Strategy Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Run Mode Selection -->
+                    <div class="run-mode-selection">
+                        <h6>Backtest Mode</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="runMode" id="runAll" value="all">
+                            <label class="form-check-label" for="runAll">
+                                <strong>All Cryptos</strong>
+                                <small class="d-block text-muted" style="font-size: 0.7rem;">48 cryptocurrencies, ~5-6 seconds</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="runMode" id="runSingle" value="single" checked>
+                            <label class="form-check-label" for="runSingle">
+                                <strong>Single Crypto</strong>
+                                <small class="d-block text-muted" style="font-size: 0.7rem;">Test one specific crypto</small>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Single Crypto Selection (hidden by default) -->
+                    <div id="singleCryptoSelection" class="mb-3">
+                        <label for="cryptoSelect">Select Cryptocurrency</label>
+                        <select class="form-control" id="cryptoSelect">
+                            <option value="">Loading cryptocurrencies...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Time Range Selection -->
+                    <div class="time-range-selection">
+                        <h6>Time Range & Data Interval</h6>
+                        <small class="text-muted d-block mb-2">Default: Last 1 year (uses available data for each crypto)</small>
+                        
+                        <!-- Data Interval Selection -->
+                        <div class="form-group" style="margin-bottom: 5px;">
+                            <label for="dataInterval" style="font-size: 0.8rem; margin-bottom: 2px;">
+                                Data Interval 
+                                <span id="performanceIndicator" class="badge badge-success" style="font-size: 0.65rem; margin-left: 4px;">
+                                    <i class="fas fa-bolt"></i> Fast
+                                </span>
+                            </label>
+                            <select class="form-control" id="dataInterval" style="font-size: 0.8rem; padding: 3px 6px;">
+                                <option value="1d" selected>Daily (Faster, Recommended)</option>
+                                <option value="1h">Hourly (More Detailed, Slower)</option>
+                            </select>
+                            <small class="text-muted" style="font-size: 0.65rem;" id="dataPointsInfo">Daily: ~365 points/1yr | Hourly: ~8,760 points/1yr</small>
+                        </div>
+                        
+                        <!-- Quick Selection Buttons -->
+                        <div class="quick-range-buttons mb-2">
+                            <div class="btn-group btn-group-sm w-100" role="group">
+                                <button type="button" class="btn btn-outline-primary quick-range" data-months="3">3M</button>
+                                <button type="button" class="btn btn-outline-primary quick-range" data-months="6">6M</button>
+                                <button type="button" class="btn btn-outline-primary quick-range active" data-months="12">1Y</button>
+                                <button type="button" class="btn btn-outline-primary quick-range" data-months="24">2Y</button>
+                                <button type="button" class="btn btn-outline-primary quick-range" data-months="60">5Y</button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info" style="padding: 6px 8px; margin-bottom: 8px; font-size: 0.7rem;">
+                            <i class="fas fa-info-circle"></i> <strong>Tip:</strong> Daily data with 1 year range provides 3-5x faster results. Use hourly only for Price Momentum strategy.
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="startDate">Start Date</label>
+                            <input type="date" class="form-control" id="startDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">End Date</label>
+                            <input type="date" class="form-control" id="endDate">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-block" id="clearDates">
+                            <i class="fas fa-times"></i> Clear Dates
+                        </button>
+                    </div>
+                    
+                    <!-- Strategy Selection -->
+                    <div id="strategySelection" class="mb-3">
+                        <h6>Strategy</h6>
+                        <select class="form-control" id="strategyDropdown">
+                            <option value="">Loading strategies...</option>
+                        </select>
+                        <small class="form-text text-muted" id="strategyDescription"></small>
+                    </div>
+                    
+                    <!-- Strategy Parameters -->
+                    <div id="strategyParameters" style="display: none;">
+                        <h6>Strategy Parameters</h6>
+                        <div id="parameterInputs"></div>
+                        
+                        <button type="button" class="btn btn-primary btn-block mt-3" id="runBacktest">
+                            <i class="fas fa-play"></i> Run Backtest
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Panel -->
+        <div class="col-lg-8">
+            <!-- Loading State -->
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Running backtest...</span>
+                </div>
+                <h5 class="mt-3">Running Strategy Backtest</h5>
+                <p class="text-muted">This may take a few moments to calculate...</p>
+                
+                <div class="progress-bar-wrapper">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">Processing cryptocurrency data...</small>
+                </div>
+            </div>
+            
+            <!-- Results Display -->
+            <div class="backtest-results">
+                <!-- Summary Results -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i> Backtest Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="results-summary" id="summaryResults">
+                            <!-- Summary content will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Single Crypto Chart (shown only for single crypto backtest) -->
+                <div class="card" id="singleCryptoChart" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Performance Chart</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="performanceChart" style="height: 255px;"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Detailed Results -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-table"></i> Detailed Results by Cryptocurrency</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="exportResults()">
+                                <i class="fas fa-download"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped crypto-results-table" id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-header" data-column="symbol" data-type="text">Cryptocurrency</th>
+                                        <th class="sortable-header" data-column="total_return" data-type="number">Total Return (%)</th>
+                                        <th class="sortable-header" data-column="final_value" data-type="number">Final Value ($)</th>
+                                        <th class="sortable-header" data-column="buy_hold_return" data-type="number">Buy & Hold (%)</th>
+                                        <th class="sortable-header" data-column="strategy_vs_hold" data-type="number">Strategy vs Hold</th>
+                                        <th class="sortable-header" data-column="total_trades" data-type="number">Total Trades</th>
+                                        <th class="sortable-header" data-column="profitable_trades" data-type="number">Profitable Trades</th>
+                                        <th class="sortable-header" data-column="max_drawdown" data-type="number">Max Drawdown (%)</th>
+                                        <th class="sortable-header" data-column="period" data-type="text">Period</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Results will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Welcome State -->
+            <div class="card" id="welcomeCard">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+                    <h4>Ready to Test Investment Strategies</h4>
+                    <p class="text-muted">
+                        Select a strategy from the left panel and configure its parameters to start backtesting against 
+                        your historical cryptocurrency data.
+                    </p>
+                    <p class="text-muted">
+                        <small>
+                            <i class="fas fa-info-circle"></i>
+                            Your database contains years of historical price data for comprehensive backtesting.
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Crypto Trend Tooltip -->
+<div id="cryptoTrendTooltip">
+    <div class="tooltip-header">
+        <div>
+            <div class="tooltip-title" id="tooltipCryptoName">Loading...</div>
+            <div class="tooltip-symbol" id="tooltipCryptoSymbol"></div>
+        </div>
+        <div class="tooltip-stat-value" id="tooltipReturn">--</div>
+    </div>
+    
+    <div class="tooltip-chart" id="tooltipChart">
+        <canvas id="trendCanvas"></canvas>
+    </div>
+    
+    <div class="tooltip-stats">
+        <div class="tooltip-stat">
+            <span class="tooltip-stat-label">Final Value:</span>
+            <span class="tooltip-stat-value" id="tooltipFinalValue">--</span>
+        </div>
+        <div class="tooltip-stat">
+            <span class="tooltip-stat-label">Total Trades:</span>
+            <span class="tooltip-stat-value" id="tooltipTotalTrades">--</span>
+        </div>
+        <div class="tooltip-stat">
+            <span class="tooltip-stat-label">Win Rate:</span>
+            <span class="tooltip-stat-value" id="tooltipWinRate">--</span>
+        </div>
+        <div class="tooltip-stat">
+            <span class="tooltip-stat-label">Max Drawdown:</span>
+            <span class="tooltip-stat-value" id="tooltipDrawdown">--</span>
+        </div>
+    </div>
+    
+    <div class="tooltip-trades">
+        <div class="tooltip-trades-title">Recent Trades:</div>
+        <div class="tooltip-trade-list" id="tooltipTradeList">
+            <div class="loading-chart">
+                <span>Hover over a cryptocurrency to see details</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let selectedStrategy = null;
+let cryptoData = [];
+let currentResults = [];
+let trendChart = null;
+let currentTooltipCrypto = null;
+let tooltipData = {}; // Cache for tooltip data
+let isBacktestInProgress = false;
+let parameterAutoRunTimer = null;
+const PARAMETER_AUTO_RUN_DELAY = 600;
+
+// Tooltip positioning and display
+function showCryptoTooltip(crypto, mouseX, mouseY) {
+    const tooltip = $('#cryptoTrendTooltip');
+    const tooltipWidth = 400;
+    const tooltipHeight = 400;
+    
+    // Position tooltip with bottom-left corner following mouse
+    // Offset slightly to avoid covering the row
+    let left = mouseX + 20;
+    let top = mouseY - tooltipHeight + 20;
+    
+    // Keep tooltip on screen
+    const windowWidth = $(window).width();
+    const windowHeight = $(window).height();
+    
+    if (left + tooltipWidth > windowWidth) {
+        left = mouseX - tooltipWidth - 20;
+    }
+    if (top < 0) {
+        top = 20;
+    }
+    if (top + tooltipHeight > windowHeight) {
+        top = windowHeight - tooltipHeight - 20;
+    }
+    
+    tooltip.css({
+        left: left + 'px',
+        top: top + 'px'
+    });
+    
+    tooltip.addClass('visible');
+    
+    // Update tooltip content
+    updateTooltipContent(crypto);
+}
+
+function hideTooltip() {
+    $('#cryptoTrendTooltip').removeClass('visible');
+    currentTooltipCrypto = null;
+}
+
+function updateTooltipContent(crypto) {
+    if (!crypto) return;
+    
+    // Update basic info
+    $('#tooltipCryptoName').text(crypto.name);
+    $('#tooltipCryptoSymbol').text(crypto.symbol);
+    
+    const returnClass = crypto.total_return >= 0 ? 'positive' : 'negative';
+    $('#tooltipReturn').html(`<span class="${returnClass}">${crypto.total_return >= 0 ? '+' : ''}${crypto.total_return}%</span>`);
+    
+    $('#tooltipFinalValue').text('$' + (crypto.final_value || 0).toFixed(2));
+    $('#tooltipTotalTrades').text(crypto.total_trades || 0);
+    
+    const winRate = crypto.total_trades > 0 
+        ? ((crypto.profitable_trades / crypto.total_trades) * 100).toFixed(1)
+        : '0.0';
+    $('#tooltipWinRate').text(winRate + '%');
+    $('#tooltipDrawdown').text((crypto.max_drawdown || 0) + '%');
+    
+    // Load detailed data if not cached
+    if (!tooltipData[crypto.crypto_id]) {
+        loadTooltipData(crypto);
+    } else {
+        renderTooltipChart(tooltipData[crypto.crypto_id]);
+        renderTradesList(tooltipData[crypto.crypto_id].trades);
+    }
+}
+
+function loadTooltipData(crypto) {
+    // Show loading state
+    $('#tooltipChart').html('<div class="loading-chart"><i class="fas fa-spinner fa-spin"></i> Loading chart...</div>');
+    $('#tooltipTradeList').html('<div class="loading-chart"><i class="fas fa-spinner fa-spin"></i> Loading trades...</div>');
+    
+    // Get time range if specified
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    
+    // Get detailed backtest data with trades
+    const requestData = {
+        strategy_id: selectedStrategy,
+        crypto_id: crypto.crypto_id,
+        parameters: getCurrentParameters()
+    };
+    
+    if (startDate) requestData.start_date = startDate;
+    if (endDate) requestData.end_date = endDate;
+    
+    // Add data interval
+    const dataInterval = $('#dataInterval').val() || '1d';
+    requestData.interval = dataInterval;
+    
+    $.ajax({
+        url: '/api/crypto/backtest/run',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(requestData),
+        timeout: 30000
+    })
+    .done(function(data) {
+        if (data.success && data.trades) {
+            tooltipData[crypto.crypto_id] = {
+                trades: data.trades,
+                start_date: data.start_date,
+                end_date: data.end_date
+            };
+            
+            // Only render if still hovering over this crypto
+            if (currentTooltipCrypto === crypto.crypto_id) {
+                renderTooltipChart(tooltipData[crypto.crypto_id]);
+                renderTradesList(data.trades);
+            }
+        } else {
+            $('#tooltipChart').html('<div class="loading-chart">No trade data available</div>');
+            $('#tooltipTradeList').html('<div class="loading-chart">No trades executed</div>');
+        }
+    })
+    .fail(function() {
+        $('#tooltipChart').html('<div class="loading-chart">Error loading chart</div>');
+        $('#tooltipTradeList').html('<div class="loading-chart">Error loading trades</div>');
+    });
+}
+
+function getCurrentParameters() {
+    const parameters = {};
+    $('#parameterInputs input').each(function() {
+        const paramName = $(this).attr('id').replace('param_', '');
+        parameters[paramName] = $(this).val();
+    });
+    return parameters;
+}
+
+function renderTooltipChart(data) {
+    if (!data || !data.trades || data.trades.length === 0) {
+        $('#tooltipChart').html('<div class="loading-chart">No trade history</div>');
+        return;
+    }
+    
+    // Prepare chart
+    $('#tooltipChart').html('<canvas id="trendCanvas" style="width: 100%; height: 150px;"></canvas>');
+    
+    const ctx = document.getElementById('trendCanvas');
+    if (!ctx) return;
+    
+    // Destroy existing chart
+    if (trendChart) {
+        trendChart.destroy();
+    }
+    
+    // Prepare data for chart
+    const trades = data.trades;
+    const labels = [];
+    const portfolioValues = [];
+    const buyPoints = [];
+    const sellPoints = [];
+    
+    // Calculate portfolio value at each trade
+    let currentValue = parseFloat(trades[0].value || 0);
+    
+    trades.forEach((trade, index) => {
+        const date = new Date(trade.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        labels.push(date);
+        
+        if (trade.action === 'BUY') {
+            currentValue = trade.value;
+            buyPoints.push(currentValue);
+            sellPoints.push(null);
+        } else if (trade.action === 'SELL') {
+            currentValue = trade.value;
+            sellPoints.push(null);
+            buyPoints.push(currentValue);
+        }
+        
+        portfolioValues.push(currentValue);
+    });
+    
+    // Create chart
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Portfolio Value',
+                    data: portfolioValues,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Buy',
+                    data: buyPoints,
+                    borderColor: '#28a745',
+                    backgroundColor: '#28a745',
+                    pointRadius: 6,
+                    pointStyle: 'triangle',
+                    showLine: false
+                },
+                {
+                    label: 'Sell',
+                    data: sellPoints,
+                    borderColor: '#dc3545',
+                    backgroundColor: '#dc3545',
+                    pointRadius: 6,
+                    pointStyle: 'rectRot',
+                    showLine: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        font: { size: 10 }
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        font: { size: 9 }
+                    }
+                },
+                y: {
+                    display: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        },
+                        font: { size: 9 }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+}
+
+function renderTradesList(trades) {
+    if (!trades || trades.length === 0) {
+        $('#tooltipTradeList').html('<div class="loading-chart">No trades executed</div>');
+        return;
+    }
+    
+    let html = '';
+    
+    // Show last 10 trades
+    const recentTrades = trades.slice(-10).reverse();
+    
+    recentTrades.forEach(trade => {
+        const date = new Date(trade.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const actionClass = trade.action === 'BUY' ? 'trade-buy' : 'trade-sell';
+        const price = parseFloat(trade.price).toFixed(2);
+        const value = parseFloat(trade.value).toFixed(2);
+        
+        html += `
+            <div class="tooltip-trade-item">
+                <span>
+                    <span class="${actionClass}">${trade.action}</span>
+                    <span class="text-muted" style="font-size: 0.9em;"> ${date}</span>
+                </span>
+                <span>
+                    <span style="font-size: 0.9em;">@$${price}</span>
+                    <span class="text-muted" style="margin-left: 8px;">$${value}</span>
+                </span>
+            </div>
+        `;
+    });
+    
+    $('#tooltipTradeList').html(html);
+}
+
+// Initialize tooltip functionality
+function initTooltipHandlers() {
+    let mouseX = 0;
+    let mouseY = 0;
+    
+    // Track mouse position
+    $(document).on('mousemove', function(e) {
+        mouseX = e.pageX;
+        mouseY = e.pageY;
+        
+        // Update tooltip position if visible
+        if ($('#cryptoTrendTooltip').hasClass('visible')) {
+            const tooltip = $('#cryptoTrendTooltip');
+            const tooltipWidth = tooltip.outerWidth();
+            const tooltipHeight = tooltip.outerHeight();
+            
+            let left = mouseX + 20;
+            let top = mouseY - tooltipHeight + 20;
+            
+            const windowWidth = $(window).width();
+            const windowHeight = $(window).height();
+            
+            if (left + tooltipWidth > windowWidth) {
+                left = mouseX - tooltipWidth - 20;
+            }
+            if (top < 0) {
+                top = 20;
+            }
+            if (top + tooltipHeight > windowHeight) {
+                top = windowHeight - tooltipHeight - 20;
+            }
+            
+            tooltip.css({
+                left: left + 'px',
+                top: top + 'px'
+            });
+        }
+    });
+    
+    // Handle row hover
+    $(document).on('mouseenter', '.results-table-row', function() {
+        const cryptoId = $(this).data('crypto-id');
+        const crypto = currentResults.find(r => r.crypto_id === cryptoId);
+        
+        if (crypto) {
+            currentTooltipCrypto = cryptoId;
+            showCryptoTooltip(crypto, mouseX, mouseY);
+        }
+    });
+    
+    $(document).on('mouseleave', '.results-table-row', function() {
+        // Small delay to allow moving to another row
+        setTimeout(function() {
+            if (!$('.results-table-row:hover').length) {
+                hideTooltip();
+            }
+        }, 100);
+    });
+    
+    // Hide when leaving table area
+    $(document).on('mouseleave', '#resultsTable', function() {
+        setTimeout(function() {
+            if (!$('.results-table-row:hover').length) {
+                hideTooltip();
+            }
+        }, 200);
+    });
+}
+
+function updatePerformanceIndicator() {
+    const interval = $('#dataInterval').val();
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    
+    // Calculate approximate time range in months
+    let months = 12; // Default 1 year
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        months = Math.round((end - start) / (1000 * 60 * 60 * 24 * 30));
+    } else {
+        // Check active quick range button
+        const activeButton = $('.quick-range.active');
+        if (activeButton.length) {
+            const buttonMonths = activeButton.data('months');
+            if (buttonMonths !== 'all') {
+                months = parseInt(buttonMonths);
+            } else {
+                months = 60; // Assume 5 years for "all"
+            }
+        }
+    }
+    
+    // Calculate estimated data points
+    const pointsPerMonth = interval === '1d' ? 30 : 730; // ~30 days or ~730 hours per month
+    const estimatedPoints = months * pointsPerMonth;
+    
+    // Determine performance level
+    let perfClass = 'badge-success';
+    let perfIcon = 'fa-bolt';
+    let perfText = 'Fast';
+    let infoText = '';
+    
+    if (estimatedPoints < 500) {
+        perfClass = 'badge-success';
+        perfIcon = 'fa-rocket';
+        perfText = 'Very Fast';
+        infoText = `~${estimatedPoints.toLocaleString()} points • Est. < 0.5s`;
+    } else if (estimatedPoints < 1000) {
+        perfClass = 'badge-success';
+        perfIcon = 'fa-bolt';
+        perfText = 'Fast';
+        infoText = `~${estimatedPoints.toLocaleString()} points • Est. < 1s`;
+    } else if (estimatedPoints < 5000) {
+        perfClass = 'badge-info';
+        perfIcon = 'fa-clock';
+        perfText = 'Moderate';
+        infoText = `~${estimatedPoints.toLocaleString()} points • Est. 1-2s`;
+    } else if (estimatedPoints < 10000) {
+        perfClass = 'badge-warning';
+        perfIcon = 'fa-hourglass-half';
+        perfText = 'Slower';
+        infoText = `~${estimatedPoints.toLocaleString()} points • Est. 2-4s`;
+    } else {
+        perfClass = 'badge-danger';
+        perfIcon = 'fa-hourglass';
+        perfText = 'Slow';
+        infoText = `~${estimatedPoints.toLocaleString()} points • Est. > 4s`;
+    }
+    
+    // Update badge
+    $('#performanceIndicator')
+        .removeClass('badge-success badge-info badge-warning badge-danger')
+        .addClass(perfClass)
+        .html(`<i class="fas ${perfIcon}"></i> ${perfText}`);
+    
+    // Update info text
+    $('#dataPointsInfo').text(infoText);
+}
+
+$(document).ready(function() {
+    loadStrategies();
+    loadCryptocurrencies();
+    
+    // Run mode selection handlers
+    $('input[name="runMode"]').change(function() {
+        if ($(this).val() === 'single') {
+            $('#singleCryptoSelection').show();
+        } else {
+            $('#singleCryptoSelection').hide();
+        }
+    });
+    
+    // Quick range button handlers
+    $('.quick-range').click(function() {
+        const months = $(this).data('months');
+        const endDate = new Date();
+        
+        // Remove active class from all buttons
+        $('.quick-range').removeClass('active');
+        // Add active class to clicked button
+        $(this).addClass('active');
+        
+        if (months === 'all') {
+            // Clear dates to use all data
+            $('#startDate').val('');
+            $('#endDate').val('');
+        } else {
+            // Calculate start date based on months
+            const startDate = new Date();
+            startDate.setMonth(endDate.getMonth() - months);
+            
+            // Set the date inputs
+            $('#endDate').val(endDate.toISOString().split('T')[0]);
+            $('#startDate').val(startDate.toISOString().split('T')[0]);
+        }
+        
+        // Update performance indicator
+        updatePerformanceIndicator();
+    });
+    
+    // Clear dates button
+    $('#clearDates').click(function() {
+        $('#startDate').val('');
+        $('#endDate').val('');
+        // Set "All Data" button as active
+        $('.quick-range').removeClass('active');
+        $('.quick-range[data-months="all"]').addClass('active');
+    });
+    
+    // Data interval change handler
+    $('#dataInterval').on('change', function() {
+        updatePerformanceIndicator();
+    });
+    
+    // Manual date change removes active state from quick buttons
+    $('#startDate, #endDate').on('change', function() {
+        updatePerformanceIndicator();
+        
+        // Only remove active if user manually changed dates
+        // Check if dates match any quick range button
+        const startDate = $('#startDate').val();
+        const endDate = $('#endDate').val();
+        
+        if (!startDate && !endDate) {
+            $('.quick-range').removeClass('active');
+            $('.quick-range[data-months="all"]').addClass('active');
+        } else {
+            // User set custom dates, deactivate all quick buttons
+            $('.quick-range').removeClass('active');
+        }
+    });
+    
+    // Default to daily interval and last 1 year of data for optimal performance
+    $('#dataInterval').val('1d');
+    $('.quick-range[data-months="12"]').trigger('click');
+    
+    // Initialize performance indicator
+    updatePerformanceIndicator();
+
+    // Initialize tooltip handlers
+    initTooltipHandlers();
+});
+
+function loadStrategies() {
+    console.log('Loading strategies...');
+    $.get('/api/crypto/strategies')
+        .done(function(data) {
+            console.log('Strategies loaded:', data);
+            displayStrategies(data.strategies);
+        })
+        .fail(function(xhr) {
+            console.error('Failed to load strategies:', xhr);
+            $('#strategyList').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error loading strategies: ${xhr.responseJSON?.error || 'Unknown error'}
+                </div>
+            `);
+        });
+}
+
+function loadCryptocurrencies() {
+    $.get('/api/crypto/with-data')
+        .done(function(data) {
+            cryptoData = data.cryptocurrencies;
+            updateCryptoInfo(cryptoData);
+            populateCryptoSelect(cryptoData);
+        })
+        .fail(function(xhr) {
+            console.error('Error loading cryptocurrencies:', xhr);
+        });
+}
+
+function updateCryptoInfo(cryptos) {
+    const count = cryptos.length;
+    const minDate = Math.min(...cryptos.map(c => new Date(c.start_date)));
+    const maxDate = Math.max(...cryptos.map(c => new Date(c.end_date)));
+    
+    $('#crypto-count').text(`${count} Cryptocurrencies`);
+    $('#data-range').text(`${new Date(minDate).getFullYear()} - ${new Date(maxDate).getFullYear()}`);
+}
+
+function populateCryptoSelect(cryptos) {
+    const select = $('#cryptoSelect');
+    select.empty().append('<option value="">Select a cryptocurrency...</option>');
+    const defaultSymbol = 'SOLUSDT';
+    let defaultCryptoId = null;
+    
+    (cryptos || []).forEach(crypto => {
+        const daysOfData = Math.floor(crypto.days_of_data ?? 0);
+        const years = (daysOfData / 365).toFixed(1);
+        const isDefault = (crypto.symbol || '').toUpperCase() === defaultSymbol;
+        const totalRecords = Number(crypto.total_records ?? 0);
+        if (isDefault) {
+            defaultCryptoId = crypto.id;
+        }
+        select.append(`
+            <option value="${crypto.id}" ${isDefault ? 'selected' : ''}>
+                ${crypto.symbol} - ${crypto.name} (${years} years, ${totalRecords.toLocaleString()} records)
+            </option>
+        `);
+    });
+
+    if (defaultCryptoId) {
+        select.val(defaultCryptoId).trigger('change');
+    }
+}
+
+function displayStrategies(strategies) {
+    // Store strategies globally for later use
+    window.availableStrategies = strategies;
+    
+    // Populate dropdown
+    let options = '<option value="">-- Select a Strategy --</option>';
+    strategies.forEach(strategy => {
+        options += `<option value="${strategy.id}" data-description="${strategy.description}" data-type="${strategy.strategy_type}">${strategy.name}</option>`;
+    });
+    
+    $('#strategyDropdown').html(options);
+    
+    // Add change handler
+    $('#strategyDropdown').off('change').on('change', function() {
+        const strategyId = parseInt($(this).val());
+        if (strategyId) {
+            const selectedOption = $(this).find('option:selected');
+            const description = selectedOption.data('description');
+            const type = selectedOption.data('type');
+            const strategyName = $(this).find('option:selected').text();
+            
+            // Show description
+            $('#strategyDescription').html(`${description} <span class="badge badge-secondary">${type}</span>`);
+            
+            // Smart interval selection based on strategy
+            setOptimalIntervalForStrategy(strategyName);
+            
+            // Select this strategy
+            selectStrategy(strategyId, strategyName);
+        } else {
+            $('#strategyDescription').html('');
+            $('#strategyParameters').hide();
+        }
+    });
+}
+
+function setOptimalIntervalForStrategy(strategyName) {
+    // Strategy-specific optimal intervals for best performance
+    const strategyIntervals = {
+        'Price Momentum': '1h',  // Needs hourly for accurate momentum window
+        'RSI Buy/Sell': '1d',
+        'Moving Average Crossover': '1d',
+        'Bollinger Bands': '1d',
+        'Mean Reversion': '1d'
+    };
+    
+    const recommendedInterval = strategyIntervals[strategyName] || '1d';
+    const currentInterval = $('#dataInterval').val();
+    
+    // Only auto-change if user hasn't explicitly selected hourly for a daily-recommended strategy
+    if (recommendedInterval !== currentInterval) {
+        $('#dataInterval').val(recommendedInterval);
+        
+        // Show helpful tooltip
+        const intervalName = recommendedInterval === '1h' ? 'hourly' : 'daily';
+        const reason = recommendedInterval === '1h' 
+            ? 'for accurate short-term momentum calculations'
+            : 'for optimal performance';
+        
+        $('#dataInterval').attr('title', `Auto-selected ${intervalName} data ${reason}`);
+    }
+}
+
+function selectStrategy(strategyId, strategyName) {
+    selectedStrategy = strategyId;
+    
+    // Load strategy parameters
+    const strategy = window.availableStrategies.find(s => s.id === strategyId);
+    if (strategy) {
+        displayParameters(strategy.parameters);
+        $('#strategyParameters').show();
+    }
+}
+
+function displayParameters(parameters) {
+    let html = '<div class="row">';
+    
+    parameters.forEach((param, index) => {
+        let input = '';
+        const inputId = `param_${param.name}`;
+        
+        if (param.name === 'cooldown_unit') {
+            // Special dropdown for cooldown unit
+            input = `
+                <select class="form-control form-control-sm" id="${inputId}">
+                    <option value="hours" ${param.default_value === 'hours' ? 'selected' : ''}>Hours</option>
+                    <option value="days" ${param.default_value === 'days' ? 'selected' : ''}>Days</option>
+                </select>
+            `;
+        } else if (param.type === 'decimal' || param.type === 'integer' || param.type === 'number' || param.type === 'percentage') {
+            const step = '1';
+            const min = param.min_value || '';
+            const max = param.max_value || '';
+            
+            input = `
+                <input type="number" class="form-control form-control-sm" 
+                       id="${inputId}" 
+                       value="${param.default_value}" 
+                       step="${step}"
+                       min="${min}" 
+                       max="${max}"
+                       required>
+            `;
+        } else if (param.type === 'text' || param.type === 'string') {
+            input = `
+                <input type="text" class="form-control form-control-sm" 
+                       id="${inputId}" 
+                       value="${param.default_value}" 
+                       required>
+            `;
+        }
+        
+        html += `
+            <div class="col-md-4">
+                <div class="parameter-group">
+                    <label for="${inputId}" style="font-size: 0.85rem; margin-bottom: 0.25rem;">${param.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
+                    ${input}
+                    <div class="parameter-help" style="font-size: 0.75rem; margin-top: 0.15rem;">${param.description}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    $('#parameterInputs').html(html);
+
+    setupParameterAutoRun();
+}
+
+function shouldAutoRunSingle() {
+    const runMode = $('input[name="runMode"]:checked').val();
+    const cryptoId = $('#cryptoSelect').val();
+    return runMode === 'single' && !!selectedStrategy && !!cryptoId;
+}
+
+function scheduleParameterAutoRun() {
+    if (parameterAutoRunTimer) {
+        clearTimeout(parameterAutoRunTimer);
+    }
+
+    parameterAutoRunTimer = setTimeout(() => {
+        if (!shouldAutoRunSingle()) {
+            return;
+        }
+
+        if (isBacktestInProgress) {
+            // Try again once the current backtest finishes
+            scheduleParameterAutoRun();
+            return;
+        }
+
+        $('#runBacktest').trigger('click');
+    }, PARAMETER_AUTO_RUN_DELAY);
+}
+
+function setupParameterAutoRun() {
+    $('#parameterInputs')
+        .off('input.autoRun change.autoRun')
+        .on('input.autoRun change.autoRun', 'input, select', function() {
+            scheduleParameterAutoRun();
+        });
+}
+
+$('#runBacktest').click(function() {
+    if (isBacktestInProgress) {
+        return;
+    }
+
+    if (parameterAutoRunTimer) {
+        clearTimeout(parameterAutoRunTimer);
+        parameterAutoRunTimer = null;
+    }
+
+    if (!selectedStrategy) {
+        alert('Please select a strategy first.');
+        return;
+    }
+    
+    const parameters = {};
+    $('#parameterInputs input, #parameterInputs select').each(function() {
+        const paramName = $(this).attr('id').replace('param_', '');
+        parameters[paramName] = $(this).val();
+    });
+    
+    // Get time range if specified
+    const startDate = $('#startDate').val();
+    const endDate = $('#endDate').val();
+    
+    // Validate date range
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+        alert('Start date must be before end date.');
+        return;
+    }
+    
+    const runMode = $('input[name="runMode"]:checked').val();
+    
+    if (runMode === 'single') {
+        const cryptoId = $('#cryptoSelect').val();
+        if (!cryptoId) {
+            alert('Please select a cryptocurrency.');
+            return;
+        }
+        runSingleBacktest(selectedStrategy, cryptoId, parameters, startDate, endDate);
+    } else {
+        runAllBacktests(selectedStrategy, parameters, startDate, endDate);
+    }
+});
+
+function runSingleBacktest(strategyId, cryptoId, parameters, startDate, endDate) {
+    isBacktestInProgress = true;
+    showLoading();
+    
+    const requestData = {
+        strategy_id: strategyId,
+        crypto_id: parseInt(cryptoId),
+        parameters: parameters
+    };
+    
+    // Add date range if specified
+    if (startDate) requestData.start_date = startDate;
+    if (endDate) requestData.end_date = endDate;
+    
+    // Add data interval
+    const dataInterval = $('#dataInterval').val() || '1d';
+    requestData.interval = dataInterval;
+    
+    $.ajax({
+        url: '/api/crypto/backtest/run',
+        method: 'POST',
+        contentType: 'application/json',
+        timeout: 60000, // 1 minute timeout for single crypto
+        data: JSON.stringify(requestData)
+    })
+    .done(function(result) {
+        const crypto = cryptoData.find(c => c.id == cryptoId);
+        const results = [{
+            crypto_id: cryptoId,
+            symbol: crypto.symbol,
+            name: crypto.name,
+            ...result
+        }];
+        displayResults(results, true);
+    })
+    .fail(function(xhr) {
+        hideLoading();
+        let errorMsg = 'Unknown error';
+        
+        if (xhr.status === 504) {
+            errorMsg = 'Request timed out. Please try again or contact support.';
+        } else if (xhr.status === 500) {
+            errorMsg = 'Server error occurred during backtest calculation.';
+        } else if (xhr.responseJSON?.error) {
+            errorMsg = xhr.responseJSON.error;
+        } else if (xhr.responseText) {
+            // Try to extract error from HTML response
+            const htmlMatch = xhr.responseText.match(/<title>(.*?)<\/title>/);
+            if (htmlMatch && htmlMatch[1].includes('Error')) {
+                errorMsg = 'Server processing error. Please try with different parameters.';
+            }
+        }
+        
+        console.error('Backtest error:', xhr);
+        alert('Error running backtest: ' + errorMsg);
+    })
+    .always(function() {
+        isBacktestInProgress = false;
+    });
+}
+
+function runAllBacktests(strategyId, parameters, startDate, endDate) {
+    isBacktestInProgress = true;
+    showLoading(true);
+    
+    const requestData = {
+        strategy_id: strategyId,
+        parameters: parameters
+    };
+    
+    // Add date range if specified
+    if (startDate) requestData.start_date = startDate;
+    if (endDate) requestData.end_date = endDate;
+    
+    // Add data interval
+    const dataInterval = $('#dataInterval').val() || '1d';
+    requestData.interval = dataInterval;
+    
+    $.ajax({
+        url: '/api/crypto/backtest/run-all',
+        method: 'POST',
+        contentType: 'application/json',
+        timeout: 300000, // 5 minutes timeout
+        data: JSON.stringify(requestData)
+    })
+    .done(function(data) {
+        displayResults(data.results, false, data.summary);
+    })
+    .fail(function(xhr) {
+        hideLoading();
+        let errorMsg = 'Unknown error';
+        
+        if (xhr.status === 504) {
+            errorMsg = 'Request timed out. The backtest is taking longer than expected. Try testing with a single cryptocurrency first.';
+        } else if (xhr.status === 500) {
+            errorMsg = 'Server error occurred during backtest calculation.';
+        } else if (xhr.responseJSON?.error) {
+            errorMsg = xhr.responseJSON.error;
+        } else if (xhr.responseText) {
+            // Try to extract error from HTML response
+            const htmlMatch = xhr.responseText.match(/<title>(.*?)<\/title>/);
+            if (htmlMatch && htmlMatch[1].includes('Error')) {
+                errorMsg = 'Server processing error. Please try with different parameters.';
+            }
+        }
+        
+        console.error('Backtests error:', xhr);
+        alert('Error running backtests: ' + errorMsg);
+    })
+    .always(function() {
+        isBacktestInProgress = false;
+    });
+}
+
+function showLoading(showProgress = false) {
+    $('#welcomeCard').hide();
+    $('.backtest-results').hide();
+    $('.loading-spinner').show();
+    
+    if (showProgress) {
+        $('.progress-bar-wrapper').show();
+        // Simulate progress for user feedback
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress > 95) progress = 95;
+            $('.progress-bar').css('width', progress + '%');
+            if (progress > 90) {
+                clearInterval(interval);
+            }
+        }, 500);
+    }
+}
+
+function hideLoading() {
+    $('.loading-spinner').hide();
+    $('.progress-bar-wrapper').hide();
+    $('.progress-bar').css('width', '0%');
+}
+
+function hideAllStates() {
+    $('.loading-spinner').hide();
+    $('.backtest-results').hide();
+    $('#welcomeCard').hide();
+}
+
+function displayResults(results, isSingle = false, summary = null) {
+    hideLoading();
+    currentResults = results;
+    
+    // Reset sorting
+    currentSortColumn = null;
+    currentSortOrder = 'desc';
+    $('.sortable-header').removeClass('sort-asc sort-desc');
+    
+    // Display summary
+    if (summary && !isSingle) {
+        displaySummary(summary);
+        $('#singleCryptoChart').hide(); // Hide chart for batch results
+    } else if (isSingle && results.length > 0) {
+        displaySingleSummary(results[0]);
+    } else {
+        $('#singleCryptoChart').hide();
+    }
+    
+    // Display detailed results table
+    displayResultsTable(results);
+    
+    // Initialize table sorting
+    initTableSorting();
+    
+    $('.backtest-results').show();
+}
+
+function displaySummary(summary) {
+    const html = `
+        <div class="row">
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">${summary.total_cryptocurrencies}</div>
+                    <div class="metric-label">Total Cryptos</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value ${summary.average_return >= 0 ? 'positive' : 'negative'}">
+                        ${summary.average_return}%
+                    </div>
+                    <div class="metric-label">Avg Return</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value positive">${summary.positive_returns_count}</div>
+                    <div class="metric-label">Positive Returns</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">${summary.successful_backtests}</div>
+                    <div class="metric-label">Successful Tests</div>
+                </div>
+            </div>
+        </div>
+        ${summary.best_performing ? `
+            <div class="row" style="margin-top: 5px;">
+                <div class="col-md-6">
+                    <div class="alert alert-success" style="padding: 4px 8px; margin-bottom: 0; font-size: 0.8rem;">
+                        <strong>Best:</strong> ${summary.best_performing.symbol} 
+                        (+${summary.best_performing.return}%)
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="alert alert-warning" style="padding: 4px 8px; margin-bottom: 0; font-size: 0.8rem;">
+                        <strong>Worst:</strong> ${summary.worst_performing.symbol} 
+                        (${summary.worst_performing.return}%)
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+    `;
+    
+    $('#summaryResults').html(html);
+}
+
+function displaySingleSummary(result) {
+    const html = `
+        <div class="row">
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value ${result.total_return >= 0 ? 'positive' : 'negative'}">
+                        ${result.total_return}%
+                    </div>
+                    <div class="metric-label">Total Return</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">$${result.final_value}</div>
+                    <div class="metric-label">Final Value</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value ${result.strategy_vs_hold >= 0 ? 'positive' : 'negative'}">
+                        ${result.strategy_vs_hold >= 0 ? '+' : ''}${result.strategy_vs_hold}%
+                    </div>
+                    <div class="metric-label">vs Buy & Hold</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">${result.total_trades}</div>
+                    <div class="metric-label">Total Trades</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#summaryResults').html(html);
+    
+    // Show and render the performance chart
+    if (result.trades && result.trades.length > 0) {
+        $('#singleCryptoChart').show();
+        renderPerformanceChart(result);
+    } else {
+        $('#singleCryptoChart').hide();
+    }
+}
+
+let performanceChart = null;
+
+function renderPerformanceChart(result) {
+    const ctx = document.getElementById('performanceChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart
+    if (performanceChart) {
+        performanceChart.destroy();
+    }
+    
+    const priceHistory = result.price_history || [];
+    const trades = result.trades || [];
+    
+    if (priceHistory.length === 0) {
+        console.error('No price history data available');
+        return;
+    }
+    
+    const labels = [];
+    const cryptoPrices = [];
+    const portfolioValues = [];
+
+    const formatAxisLabel = (dateString) => {
+        if (!dateString) return '';
+        // Force UTC to avoid timezone shifts when converting dates without time component
+        const utcDate = new Date(`${dateString}T00:00:00Z`);
+        return utcDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: '2-digit'
+        });
+    };
+    
+    // Process all price history points for continuous lines
+    priceHistory.forEach((point) => {
+        const date = formatAxisLabel(point.date);
+        labels.push(date);
+        
+        // Crypto price for this date
+        cryptoPrices.push(point.price);
+        
+        // Use portfolio value from backend if available, otherwise use initial investment
+        const portfolioValue = point.portfolio_value !== null && point.portfolio_value !== undefined 
+            ? point.portfolio_value 
+            : (result.initial_investment || 10000);
+        portfolioValues.push(portfolioValue);
+    });
+    
+    // Prepare marker arrays aligned with labels
+    const buyMarkers = Array(labels.length).fill(null);
+    const sellMarkers = Array(labels.length).fill(null);
+
+    const labelIndexMap = labels.reduce((acc, label, idx) => {
+        if (!acc[label]) {
+            acc[label] = [];
+        }
+        acc[label].push(idx);
+        return acc;
+    }, {});
+
+    const labelUsage = {};
+
+    trades.forEach(trade => {
+        const tradeDateLabel = formatAxisLabel(trade.date);
+        const indices = labelIndexMap[tradeDateLabel];
+        if (!indices || indices.length === 0) {
+            console.warn('Trade date not found in labels:', trade.date);
+            return;
+        }
+
+        const usageCount = labelUsage[tradeDateLabel] || 0;
+        const targetIndex = indices[Math.min(usageCount, indices.length - 1)];
+        labelUsage[tradeDateLabel] = usageCount + 1;
+
+        if (trade.action === 'BUY') {
+            buyMarkers[targetIndex] = trade.price;
+        } else if (trade.action === 'SELL') {
+            sellMarkers[targetIndex] = trade.price;
+        }
+    });
+    
+    // Create chart
+    performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Portfolio Value ($)',
+                    data: portfolioValues,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Crypto Price ($)',
+                    data: cryptoPrices,
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108, 117, 125, 0.05)',
+                    borderWidth: 1.5,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'Buy',
+                    data: buyMarkers,
+                    borderColor: '#28a745',
+                    backgroundColor: '#28a745',
+                    pointRadius: 7,
+                    pointStyle: 'triangle',
+                    showLine: false,
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'Sell',
+                    data: sellMarkers,
+                    borderColor: '#dc3545',
+                    backgroundColor: '#dc3545',
+                    pointRadius: 7,
+                    pointStyle: 'rectRot',
+                    showLine: false,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11 },
+                        padding: 8,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += '$' + context.parsed.y.toFixed(2);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        font: { size: 9 }
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Portfolio Value ($)',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Crypto Price ($)',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    }
+                }
+            }
+        }
+    });
+}
+
+function displayResultsTable(results) {
+    let tbody = '';
+    
+    results.forEach(result => {
+        const strategyVsHold = result.strategy_vs_hold || 0;
+        const totalReturn = result.total_return || 0;
+        const maxDrawdown = result.max_drawdown || 0;
+        
+        const rowClass = !result.success ? 'table-warning' : 'results-table-row';
+        
+        tbody += `
+            <tr class="${rowClass}" data-crypto-id="${result.crypto_id}">
+                <td>
+                    <strong>${result.symbol}</strong><br>
+                    <small class="text-muted">${result.name}</small>
+                </td>
+                <td class="${totalReturn >= 0 ? 'positive' : 'negative'}">
+                    ${totalReturn}%
+                </td>
+                <td>$${result.final_value || 0}</td>
+                <td>${result.buy_hold_return || 0}%</td>
+                <td class="${strategyVsHold >= 0 ? 'positive' : 'negative'}">
+                    ${strategyVsHold >= 0 ? '+' : ''}${strategyVsHold}%
+                </td>
+                <td>${result.total_trades || 0}</td>
+                <td>${result.profitable_trades || 0}/${result.losing_trades || 0}</td>
+                <td>${maxDrawdown}%</td>
+                <td>
+                    ${result.start_date && result.end_date ? 
+                        `${new Date(result.start_date).getFullYear()}-${new Date(result.end_date).getFullYear()}` : 
+                        'N/A'}
+                </td>
+            </tr>
+        `;
+    });
+    
+    $('#resultsTable tbody').html(tbody);
+}
+
+// Table sorting functionality
+let currentSortColumn = null;
+let currentSortOrder = 'desc'; // Default to descending
+
+function initTableSorting() {
+    $('.sortable-header').off('click').on('click', function() {
+        const column = $(this).data('column');
+        const type = $(this).data('type');
+        
+        // Toggle sort order if clicking same column
+        if (currentSortColumn === column) {
+            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortColumn = column;
+            currentSortOrder = 'desc'; // Default to descending for new column
+        }
+        
+        // Update visual indicators
+        $('.sortable-header').removeClass('sort-asc sort-desc');
+        $(this).addClass('sort-' + currentSortOrder);
+        
+        // Sort the results
+        sortResults(column, currentSortOrder, type);
+    });
+}
+
+function sortResults(column, order, type) {
+    const sortedResults = [...currentResults].sort((a, b) => {
+        let aVal, bVal;
+        
+        // Get values based on column
+        switch(column) {
+            case 'symbol':
+                aVal = a.symbol || '';
+                bVal = b.symbol || '';
+                break;
+            case 'total_return':
+                aVal = parseFloat(a.total_return) || 0;
+                bVal = parseFloat(b.total_return) || 0;
+                break;
+            case 'final_value':
+                aVal = parseFloat(a.final_value) || 0;
+                bVal = parseFloat(b.final_value) || 0;
+                break;
+            case 'buy_hold_return':
+                aVal = parseFloat(a.buy_hold_return) || 0;
+                bVal = parseFloat(b.buy_hold_return) || 0;
+                break;
+            case 'strategy_vs_hold':
+                aVal = parseFloat(a.strategy_vs_hold) || 0;
+                bVal = parseFloat(b.strategy_vs_hold) || 0;
+                break;
+            case 'total_trades':
+                aVal = parseInt(a.total_trades) || 0;
+                bVal = parseInt(b.total_trades) || 0;
+                break;
+            case 'profitable_trades':
+                aVal = parseInt(a.profitable_trades) || 0;
+                bVal = parseInt(b.profitable_trades) || 0;
+                break;
+            case 'max_drawdown':
+                aVal = parseFloat(a.max_drawdown) || 0;
+                bVal = parseFloat(b.max_drawdown) || 0;
+                break;
+            case 'period':
+                aVal = a.start_date ? new Date(a.start_date).getTime() : 0;
+                bVal = b.start_date ? new Date(b.start_date).getTime() : 0;
+                break;
+            default:
+                return 0;
+        }
+        
+        // Compare based on type
+        if (type === 'text') {
+            if (order === 'asc') {
+                return aVal.localeCompare(bVal);
+            } else {
+                return bVal.localeCompare(aVal);
+            }
+        } else {
+            if (order === 'asc') {
+                return aVal - bVal;
+            } else {
+                return bVal - aVal;
+            }
+        }
+    });
+    
+    // Update the table with sorted results
+    displayResultsTable(sortedResults);
+}
+
+function exportResults() {
+    if (!currentResults.length) {
+        alert('No results to export');
+        return;
+    }
+    
+    // Create CSV content
+    const headers = ['Symbol', 'Name', 'Total Return (%)', 'Final Value', 'Buy Hold Return (%)', 
+                    'Strategy vs Hold (%)', 'Total Trades', 'Profitable Trades', 'Losing Trades', 
+                    'Max Drawdown (%)', 'Start Date', 'End Date'];
+    
+    let csv = headers.join(',') + '\n';
+    
+    currentResults.forEach(result => {
+        const row = [
+            result.symbol,
+            `"${result.name}"`,
+            result.total_return || 0,
+            result.final_value || 0,
+            result.buy_hold_return || 0,
+            result.strategy_vs_hold || 0,
+            result.total_trades || 0,
+            result.profitable_trades || 0,
+            result.losing_trades || 0,
+            result.max_drawdown || 0,
+            result.start_date || '',
+            result.end_date || ''
+        ];
+        csv += row.join(',') + '\n';
+    });
+    
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crypto_backtest_results_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+// Initialize page when document is ready
+$(document).ready(function() {
+    console.log('Initializing crypto backtest page...');
+    console.log('jQuery version:', $().jquery);
+    
+    // Test API endpoints directly
+    console.log('Testing API endpoint...');
+    $.get('/api/crypto/strategies')
+        .done(function(data) {
+            console.log('Direct API test successful:', data);
+        })
+        .fail(function(xhr) {
+            console.error('Direct API test failed:', xhr);
+        });
+    
+    // Load strategies and cryptocurrencies on page load
+    loadStrategies();
+    loadCryptocurrencies();
+    
+    // Set up run mode toggle handlers
+    $('input[name="runMode"]').on('change', function() {
+        if ($(this).val() === 'single') {
+            $('#singleCryptoSelection').show();
+        } else {
+            $('#singleCryptoSelection').hide();
+        }
+    });
+    
+    // Hide loading states and show welcome card initially
+    hideAllStates();
+    $('#welcomeCard').show();
+    
+    console.log('Page initialization complete.');
+});
+</script>
+{% endblock %}

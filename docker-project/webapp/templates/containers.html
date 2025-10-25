@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+
+{% block title %}Docker Container Monitoring{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datatables.min.css') }}">
+<style>
+    .card {
+        margin-bottom: 2rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1.5rem;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .status-running {
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .status-exited {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .status-paused {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    
+    .metric-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+        margin: 0.5rem;
+        text-align: center;
+        min-width: 150px;
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .metrics-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        margin: 1rem 0;
+    }
+    
+    .horizontal-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .host-info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .host-info-column {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+    }
+    
+    .column-header {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 0.5rem;
+    }
+    
+    .info-item {
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        color: #495057;
+    }
+    
+    .progress-inline {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+    }
+    
+    .progress-inline .progress-bar {
+        flex: 1;
+        height: 15px;
+        margin: 0;
+    }
+    
+    .progress-percentage {
+        font-weight: 600;
+        min-width: 45px;
+        text-align: right;
+        font-size: 0.85rem;
+    }
+    
+    .resource-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 1rem;
+    }
+    
+    .resource-header {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+    
+    .resource-details {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .resource-text {
+        flex: 1;
+        font-size: 0.9rem;
+    }
+    
+    .resource-progress {
+        flex: 2;
+    }
+    
+    .compact-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.5rem;
+        margin: 1rem 0;
+        font-size: 0.9rem;
+    }
+    
+    .compact-info-item {
+        padding: 0.5rem;
+        background: #e3f2fd;
+        border-radius: 4px;
+        border-left: 3px solid #2196f3;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background-color: #007bff;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-fill.warning {
+        background-color: #ffc107;
+    }
+    
+    .progress-fill.danger {
+        background-color: #dc3545;
+    }
+    
+    .network-info {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        border-radius: 4px;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .size-display {
+        font-family: monospace;
+        font-size: 0.9em;
+    }
+    
+    .refresh-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    .refresh-button:hover {
+        background-color: #0056b3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>🐳 Docker Container Monitoring</h1>
+    
+    <button class="refresh-button" onclick="location.reload()">🔄 Refresh Data</button>
+    
+    <!-- Host System Information -->
+    <div class="card">
+        <h2>🖥️ Host System Information</h2>
+        {% if host_info %}
+        <!-- Single Compact Row Layout -->
+        <div id="host-info-container" style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: center; background: #f8f9fa; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
+            <!-- Basic Info -->
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <div><strong>🖥️ <span id="hostname">{{ host_info.hostname }}</span></strong></div>
+                <div><strong>⚡ <span id="cpu-cores">{{ host_info.cpu_count }}</span> cores</strong></div>
+                <div><strong>🕒 <span id="boot-time">{{ host_info.boot_time.split()[1] if ' ' in host_info.boot_time else host_info.boot_time }}</span></strong></div>
+            </div>
+            
+            <!-- CPU & Memory -->
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span><strong>CPU:</strong> <span id="cpu-percent">{{ "%.1f"|format(host_info.cpu_percent) }}</span>%</span>
+                    <div style="width: 60px; height: 8px; background: #e9ecef; border-radius: 4px;">
+                        <div id="cpu-bar" style="width: {{ host_info.cpu_percent }}%; height: 100%; background: {% if host_info.cpu_percent > 80 %}#dc3545{% elif host_info.cpu_percent > 60 %}#ffc107{% else %}#28a745{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span><strong>RAM:</strong> <span id="memory-used">{{ (host_info.memory_used / 1024**3)|round(1) }}</span>/<span id="memory-total">{{ (host_info.memory_total / 1024**3)|round(1) }}</span>GB</span>
+                    <div style="width: 60px; height: 8px; background: #e9ecef; border-radius: 4px;">
+                        <div id="memory-bar" style="width: {{ host_info.memory_percent }}%; height: 100%; background: {% if host_info.memory_percent > 80 %}#dc3545{% elif host_info.memory_percent > 60 %}#ffc107{% else %}#28a745{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span><strong>Disk:</strong> <span id="disk-used">{{ (host_info.disk_used / 1024**3)|round(1) }}</span>/<span id="disk-total">{{ (host_info.disk_total / 1024**3)|round(1) }}</span>GB</span>
+                    <div style="width: 60px; height: 8px; background: #e9ecef; border-radius: 4px;">
+                        <div id="disk-bar" style="width: {{ host_info.disk_percent }}%; height: 100%; background: {% if host_info.disk_percent > 80 %}#dc3545{% elif host_info.disk_percent > 60 %}#ffc107{% else %}#28a745{% endif %}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Network -->
+            <div id="network-info" style="display: flex; gap: 1rem; align-items: center;">
+                {% if host_info.network_interfaces %}
+                {% for interface in host_info.network_interfaces[:2] %}
+                <div style="font-size: 0.9rem;"><strong>🌐 {{ interface.interface }}:</strong> {{ interface.ip }}</div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Trend Charts -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
+            <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; height: 200px;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #495057; font-size: 0.9rem;">📈 CPU Usage Trend</h4>
+                <div style="height: 150px; position: relative;">
+                    <canvas id="cpuChart"></canvas>
+                </div>
+            </div>
+            <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; height: 200px;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #495057; font-size: 0.9rem;">💾 RAM Usage Trend</h4>
+                <div style="height: 150px; position: relative;">
+                    <canvas id="ramChart"></canvas>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p>Unable to retrieve host system information.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Docker Containers -->
+    <div class="card">
+        <h2>🐳 Docker Containers</h2>
+        {% if containers %}
+        <table class="table" id="containersTable">
+            <thead>
+                <tr>
+                    <th>Container Name</th>
+                    <th>Image</th>
+                    <th>Status</th>
+                    <th>CPU %</th>
+                    <th>Memory Usage</th>
+                    <th>Memory %</th>
+                    <th>Image Size</th>
+                    <th>Ports</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for container in containers %}
+                <tr>
+                    <td>
+                        <strong>{{ container.name }}</strong><br>
+                        <small style="color: #6c757d;">{{ container.id }}</small>
+                    </td>
+                    <td>{{ container.image }}</td>
+                    <td>
+                        <span class="status-{{ container.status }}">
+                            {% if container.status == 'running' %}
+                                ✅ {{ container.status|title }}
+                            {% elif container.status == 'exited' %}
+                                ❌ {{ container.status|title }}
+                            {% else %}
+                                ⏸️ {{ container.status|title }}
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if container.status == 'running' %}
+                            {{ "%.2f"|format(container.cpu_percent) }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if container.status == 'running' and container.memory_usage > 0 %}
+                            <span class="size-display">{{ (container.memory_usage / 1024**2)|round(1) }} MB</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if container.status == 'running' and container.memory_percent > 0 %}
+                            {{ "%.2f"|format(container.memory_percent) }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if container.image_size > 0 %}
+                            <span class="size-display">{{ (container.image_size / 1024**2)|round(1) }} MB</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>{{ container.ports if container.ports else 'None' }}</small>
+                    </td>
+                    <td>
+                        <small>{{ container.created }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No Docker containers found or unable to access Docker daemon.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datatables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script>
+    // Global variables for charts and data
+    let cpuChart, ramChart;
+    let cpuData = [];
+    let ramData = [];
+    let timeLabels = [];
+    const maxDataPoints = 30; // Keep last 30 data points (1 minute at 2-second intervals)
+    
+    // Initialize DataTable if available
+    $(document).ready(function() {
+        if ($.fn.DataTable) {
+            $('#containersTable').DataTable({
+                pageLength: 25,
+                order: [[2, 'asc'], [0, 'asc']], // Sort by status first, then name
+                searching: false, // Disable search functionality
+                columnDefs: [
+                    { targets: [3, 4, 5], orderable: true },
+                    { targets: [6, 7, 8], orderable: false }
+                ]
+            });
+        }
+        
+        // Initialize charts
+        initializeCharts();
+        
+        // Start auto-refresh for host system info
+        startHostInfoRefresh();
+    });
+    
+    function initializeCharts() {
+        // CPU Chart
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        cpuChart = new Chart(cpuCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: cpuData,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 1,
+                    pointHoverRadius: 3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    x: {
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                animation: false,
+                elements: {
+                    point: {
+                        radius: 0
+                    }
+                }
+            }
+        });
+        
+        // RAM Chart
+        const ramCtx = document.getElementById('ramChart').getContext('2d');
+        ramChart = new Chart(ramCtx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    label: 'RAM Usage (%)',
+                    data: ramData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 1,
+                    pointHoverRadius: 3,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    x: {
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: false
+                    }
+                },
+                animation: false,
+                elements: {
+                    point: {
+                        radius: 0
+                    }
+                }
+            }
+        });
+    }
+    
+    function startHostInfoRefresh() {
+        setInterval(updateHostInfo, 2000); // Update every 2 seconds
+    }
+    
+    function updateHostInfo() {
+        fetch('/webapp/api/host-info')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const hostInfo = data.host_info;
+                    
+                    // Update CPU
+                    document.getElementById('cpu-percent').textContent = hostInfo.cpu_percent.toFixed(1);
+                    const cpuBar = document.getElementById('cpu-bar');
+                    cpuBar.style.width = hostInfo.cpu_percent + '%';
+                    cpuBar.style.background = getColorForPercentage(hostInfo.cpu_percent);
+                    
+                    // Update Memory
+                    document.getElementById('memory-used').textContent = (hostInfo.memory_used / 1024**3).toFixed(1);
+                    const memoryBar = document.getElementById('memory-bar');
+                    memoryBar.style.width = hostInfo.memory_percent + '%';
+                    memoryBar.style.background = getColorForPercentage(hostInfo.memory_percent);
+                    
+                    // Update Disk
+                    document.getElementById('disk-used').textContent = (hostInfo.disk_used / 1024**3).toFixed(1);
+                    const diskBar = document.getElementById('disk-bar');
+                    diskBar.style.width = hostInfo.disk_percent + '%';
+                    diskBar.style.background = getColorForPercentage(hostInfo.disk_percent);
+                    
+                    // Update trend charts
+                    updateTrendCharts(hostInfo.cpu_percent, hostInfo.memory_percent);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating host info:', error);
+            });
+    }
+    
+    function updateTrendCharts(cpuPercent, ramPercent) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString();
+        
+        // Add new data points
+        cpuData.push(cpuPercent);
+        ramData.push(ramPercent);
+        timeLabels.push(timeLabel);
+        
+        // Keep only the last maxDataPoints
+        if (cpuData.length > maxDataPoints) {
+            cpuData.shift();
+            ramData.shift();
+            timeLabels.shift();
+        }
+        
+        // Update charts
+        cpuChart.update('none'); // 'none' mode for no animation
+        ramChart.update('none');
+    }
+    
+    function getColorForPercentage(percent) {
+        if (percent > 80) return '#dc3545'; // Red
+        if (percent > 60) return '#ffc107'; // Yellow
+        return '#28a745'; // Green
+    }
+</script>
+{% endblock %}

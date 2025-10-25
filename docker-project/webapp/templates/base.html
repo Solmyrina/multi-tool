@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Docker Web App{% endblock %}</title>
+    
+    <!-- Bootstrap CSS (Local) -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <!-- Font Awesome (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fontawesome.min.css') }}">
+    
+    {% block extra_head %}
+    {% endblock %}
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+        
+        /* Custom container for non-Bootstrap pages */
+        .custom-container {
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 10px;
+        }
+        
+        /* Full-width container for stock dashboard */
+        .full-width-container {
+            width: 100%;
+            margin: 0;
+            padding: 0 10px;
+            max-width: none;
+        }
+        
+        /* Override Bootstrap container margins for nav */
+        nav .nav-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+        }
+        
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-right: auto;
+        }
+        
+        nav ul li:not(.logo) {
+            margin-left: 1.5rem;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        nav a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Dropdown Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-toggle {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .dropdown-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .dropdown-toggle::after {
+            content: "▼";
+            font-size: 0.6rem;
+            margin-left: 0.4rem;
+            transition: transform 0.3s;
+        }
+        
+        .dropdown.show .dropdown-toggle::after {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 5px);
+            left: 0;
+            background: #34495e;
+            min-width: 220px;
+            border-radius: 6px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+        }
+        
+        .dropdown.show .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-menu a {
+            display: block;
+            padding: 0.75rem 1rem;
+            border-radius: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        
+        .dropdown-menu a:last-child {
+            border-bottom: none;
+        }
+        
+        .dropdown-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            text-decoration: none;
+        }
+        
+        /* Ensure dropdown menu displays properly when shown */
+        .dropdown.show .dropdown-menu {
+            display: block !important;
+        }
+        
+        main {
+            min-height: calc(100vh - 120px);
+            padding: 2rem 0;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin: 1rem 0;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .alert {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: auto;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mt-2 {
+            margin-top: 1rem;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <ul>
+                <li class="logo">Docker Web App</li>
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('index') }}">🏠 Home</a></li>
+                    {% if current_user.has_permission('stock_view') %}
+                        <li><a href="{{ url_for('stocks_dashboard') }}">📈 Stocks</a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('weather') }}">🌤️ Weather</a></li>
+                    <li><a href="{{ url_for('pid_demo') }}">⚙️ P&ID Demo</a></li>
+                    <li><a href="{{ url_for('crypto_backtest') }}"> Crypto Backtest</a></li>
+                    {% if current_user.is_admin() %}
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" onclick="toggleDropdown(event)">🔧 Site Management</a>
+                            <div class="dropdown-menu">
+                                <a href="{{ url_for('admin_users') }}">👥 User Management</a>
+                                <a href="{{ url_for('security_dashboard') }}">🔒 Security</a>
+                                <a href="{{ url_for('performance') }}">📊 Performance</a>
+                                <a href="{{ url_for('admin_database') }}">🗄️ Database</a>
+                                <a href="{{ url_for('containers') }}">🐳 Containers</a>
+                            </div>
+                        </li>
+                    {% endif %}
+                    <li><a href="{{ url_for('profile') }}">👤 Profile</a></li>
+                    <li><a href="{{ url_for('logout') }}">🚪 Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}">🔑 Login</a></li>
+                    <li><a href="{{ url_for('register') }}">📝 Register</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <div class="{% if request.endpoint in ['weather', 'stocks_dashboard', 'performance', 'pid_demo'] %}container-fluid{% else %}custom-container{% endif %}">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'error' if category == 'error' else category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="{% if request.endpoint in ['weather', 'stocks_dashboard', 'pid_demo'] %}container-fluid{% else %}custom-container{% endif %}">
+            <p>&copy; 2025 Docker Web App. All rights reserved.</p>
+        </div>
+    </footer>
+    
+    <!-- jQuery (for Bootstrap JavaScript components) -->
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <!-- Bootstrap JavaScript (Local) -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    
+    <script>
+        function toggleDropdown(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const dropdown = event.target.closest('.dropdown');
+            const isShown = dropdown.classList.contains('show');
+            
+            // Close all dropdowns
+            document.querySelectorAll('.dropdown.show').forEach(el => {
+                el.classList.remove('show');
+            });
+            
+            // Toggle current dropdown
+            if (!isShown) {
+                dropdown.classList.add('show');
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown.show').forEach(el => {
+                    el.classList.remove('show');
+                });
+            }
+        });
+        
+        // Close dropdown on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.dropdown.show').forEach(el => {
+                    el.classList.remove('show');
+                });
+            }
+        });
+    </script>
+    
+    {% block extra_scripts %}
+    {% endblock %}
+</body>
+</html>

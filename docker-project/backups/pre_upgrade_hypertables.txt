@@ -1,0 +1,6 @@
+ hypertable_schema |       hypertable_name       | owner | num_dimensions | num_chunks | compression_enabled | tablespaces | primary_dimension |   primary_dimension_type    
+-------------------+-----------------------------+-------+----------------+------------+---------------------+-------------+-------------------+-----------------------------
+ public            | crypto_prices               | root  |              2 |       1052 | t                   |             | datetime          | timestamp without time zone
+ public            | crypto_technical_indicators | root  |              1 |        262 | t                   |             | datetime          | timestamp without time zone
+(2 rows)
+

@@ -1,0 +1,1422 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Exchanges Dashboard - Docker Web App{% endblock %}
+
+{% block content %}
+<style>
+/* Tab navigation styling */
+.tab-container {
+    margin-bottom: 1rem;
+}
+
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 5px 5px 0 0;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.tab-button.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+    background: white;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Override base container to use full width for stocks dashboard */
+.container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 5px !important; /* Reduced from 10px */
+}
+
+/* 2-column grid layout for wide displays */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 840px;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.main-column {
+    min-width: 0; /* Prevents overflow issues */
+}
+
+.side-column {
+    min-width: 380px;
+}
+
+/* Responsive: single column on smaller screens */
+@media (max-width: 1400px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 10px; /* Reduced from 20px */
+    }
+    
+    .side-column {
+        min-width: auto;
+    }
+}
+
+.card {
+    margin: 0.25rem 0; /* Reduced from 0.5rem */
+    padding: 10px; /* Reduced default padding */
+}
+
+/* Side column card styling */
+.side-card {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px; /* Reduced from 20px */
+    margin-bottom: 10px; /* Reduced from 20px */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.side-card h3 {
+    margin-top: 0;
+    margin-bottom: 10px; /* Reduced from default */
+    color: #333;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 8px; /* Reduced from 10px */
+}
+
+/* Investment calculator styling */
+.investment-calculator {
+    background-color: #f8f9fa;
+    padding: 8px; /* Reduced from 10px */
+    border-radius: 5px;
+    position: relative; /* Changed from sticky to relative */
+    height: auto; /* Allow natural height based on content */
+    min-height: 280px; /* Increased to accommodate new fields */
+    max-height: 500px; /* Increased to prevent overflow */
+    overflow-y: auto; /* Add vertical scrolling if needed */
+    overflow-x: hidden; /* Prevent horizontal overflow */
+}
+
+.investment-calculator input {
+    margin: 1px; /* Reduced from 2px */
+    padding: 3px; /* Reduced from 4px */
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    width: calc(100% - 8px); /* Adjusted for smaller padding */
+    box-sizing: border-box;
+    font-size: 0.85em; /* Added smaller font size */
+    height: 28px; /* Set specific height */
+}
+
+.investment-calculator h3 {
+    margin-bottom: 2px; /* Reduced spacing */
+    font-size: 1em; /* Slightly smaller */
+}
+
+.investment-calculator p {
+    font-size: 0.8em; /* Reduced from 0.85em */
+    margin: 0 0 3px 0; /* Reduced margins */
+    line-height: 1.2; /* Tighter line height */
+}
+
+.investment-calculator label {
+    font-size: 0.8em; /* Reduced from 0.9em */
+    margin-bottom: 1px; /* Reduced spacing */
+}
+
+.investment-calculator button {
+    padding: 3px; /* Reduced from 5px */
+    font-size: 0.8em; /* Reduced from 0.9em */
+    margin-top: 2px; /* Reduced from 3px */
+    height: 28px; /* Set specific height */
+}
+
+.investment-calculator .btn {
+    padding: 3px 6px; /* More specific padding */
+    height: 28px; /* Consistent button height */
+    line-height: 1.2; /* Better text alignment */
+}
+
+/* Enhanced scrollable table styling */
+.scrollable-table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+    margin: 0.5rem 0; /* Reduced from default */
+}
+
+.scrollable-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.scrollable-table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Smooth scrolling */
+.scrollable-table-container {
+    scroll-behavior: smooth;
+}
+
+/* Sticky header styling */
+.scrollable-table-container thead th {
+    background: #f8f9fa !important;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    padding: 0.5rem !important; /* Reduced from 0.75rem */
+}
+
+/* Table styling improvements */
+.table {
+    border-collapse: collapse;
+    font-size: 0.9em;
+    table-layout: fixed; /* Fixed layout for better control */
+}
+
+.table td, .table th {
+    padding: 0.4rem 0.6rem; /* Reduced from 0.5rem 0.75rem */
+    border-bottom: 1px solid #dee2e6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 768px) {
+    .table {
+        font-size: 0.8em;
+    }
+    
+    .table td, .table th {
+        padding: 0.3rem 0.4rem;
+    }
+}
+
+/* Summary stats styling */
+.summary-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.summary-stat:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: bold;
+    color: #666;
+}
+
+.stat-value {
+    color: #333;
+}
+
+/* Progress bar styling */
+.progress {
+    width: 100%;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #28a745;
+    transition: width 0.3s ease;
+}
+</style>
+
+<!-- Tab Navigation -->
+<div class="tab-container">
+    <div class="tab-nav">
+        <button class="tab-button active" onclick="switchTab('nasdaq')">
+            🇺🇸 NASDAQ
+        </button>
+        <button class="tab-button" onclick="switchTab('helsinki')">
+            🇫🇮 Helsinki Pörssi
+        </button>
+    </div>
+</div>
+
+<!-- NASDAQ Tab Content -->
+<div id="nasdaq-tab" class="tab-content active">
+<!-- Top controls bar -->
+<div class="card" style="padding: 8px;">
+    <div style="display: flex; gap: 1rem; margin: 0.5rem 0; flex-wrap: wrap; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="nasdaq-stock-selector" style="font-weight: bold; color: #2c3e50;">📊 Select Stock:</label>
+            <div style="position: relative;">
+                <input type="text" id="nasdaq-stock-search" placeholder="Search stocks..." 
+                       style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 180px; margin-right: 0.5rem;">
+                <select id="nasdaq-stock-selector" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;">
+                    <option value="">Loading available stocks...</option>
+                </select>
+            </div>
+            <small style="color: #666; font-style: italic;">*Only stocks with data are shown</small>
+        </div>
+        
+        <a href="{{ url_for('dashboard') }}" class="btn" style="background: #95a5a6;">← Back to Dashboard</a>
+        {% if current_user.is_authenticated and current_user.has_permission('stock_admin') %}
+        <button class="btn" style="background: #e67e22;" id="nasdaq-fetch-btn">
+            🔄 Fetch Latest Data
+        </button>
+        {% endif %}
+        <button class="btn" style="background: #27ae60;" id="nasdaq-refresh-btn">
+            ♻️ Refresh Dashboard
+        </button>
+    </div>
+</div>
+
+<!-- 2-Column Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Main Column - Left Side -->
+    <div class="main-column">
+        <!-- Price Chart -->
+        <div class="card">
+            <h2 id="nasdaq-chart-title">Loading Chart...</h2>
+            <div style="display: flex; gap: 1rem; margin: 0.5rem 0; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="nasdaq-chart-interval">Interval:</label>
+                    <select id="nasdaq-chart-interval" style="padding: 0.5rem;">
+                        <option value="1h">1 Hour</option>
+                        <option value="1d">1 Day</option>
+                        <option value="1wk">1 Week</option>
+                        <option value="1mo" selected>1 Month</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="nasdaq-chart-limit">Data Points:</label>
+                    <select id="nasdaq-chart-limit" style="padding: 0.5rem;">
+                        <option value="30">Last 30</option>
+                        <option value="100">Last 100</option>
+                        <option value="200">Last 200</option>
+                        <option value="500">Last 500</option>
+                        <option value="1000">Last 1,000</option>
+                        <option value="2000">Last 2,000</option>
+                        <option value="5000" selected>Last 5,000</option>
+                        <option value="10000">All Available Data</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="position: relative; height: 400px;">
+                <canvas id="nasdaq-priceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Yearly Growth Analysis -->
+        <div class="card">
+            <h2 style="margin-bottom: 0.5rem;">📊 Yearly Growth Analysis</h2>
+            <p style="margin: 0.5rem 0;">Historical yearly performance of the selected stock/index</p>
+            <div class="scrollable-table-container" style="max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ddd; border-radius: 4px;">
+                <table id="nasdaq-yearly-growth-table" class="table" style="width: 100%; margin: 0;">
+                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                        <tr>
+                            <th>Year</th>
+                            <th>Start Price</th>
+                            <th>End Price</th>
+                            <th>Price Change</th>
+                            <th>Growth %</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="loading-placeholder">Loading yearly growth data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Column - Right Side -->
+    <div class="side-column">
+        <!-- Investment Calculator -->
+        <div class="side-card investment-calculator">
+            <h3 style="margin-bottom: 2px;">💰 Investment Calculator</h3>
+            <p style="font-size: 0.8em; color: #666; margin: 0 0 3px 0;">Calculate returns from regular monthly investments</p>
+            
+            <div style="margin: 3px 0;">
+                <label for="nasdaq-monthly-investment" style="font-weight: bold; display: block; margin-bottom: 1px; font-size: 0.8em;">Monthly Investment:</label>
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="nasdaq-monthly-investment" value="500" min="1" max="10000" 
+                           style="flex: 1; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.85em; height: 28px;"
+                           onchange="calculateInvestment('nasdaq')">
+                    <span style="font-weight: bold; font-size: 0.8em;">USD</span>
+                </div>
+            </div>
+            
+            <div style="margin: 3px 0;">
+                <label for="nasdaq-start-year" style="font-weight: bold; display: block; margin-bottom: 1px; font-size: 0.8em;">Starting Year:</label>
+                <select id="nasdaq-start-year" style="width: 100%; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.85em; height: 28px;" onchange="calculateInvestment('nasdaq')">
+                    <option value="">Use earliest available data</option>
+                </select>
+                <small style="color: #666; font-size: 0.7em;">Choose when to start the investment simulation</small>
+            </div>
+            
+            <button class="btn" style="background: #27ae60; width: 100%; margin-top: 2px; padding: 3px; font-size: 0.8em; height: 28px;" onclick="calculateInvestment('nasdaq')">
+                🧮 Calculate Returns
+            </button>
+            
+            <!-- Investment Summary -->
+            <div id="nasdaq-investment-summary" style="margin: 3px 0 0 0; max-height: 320px; overflow-y: auto; overflow-x: hidden;">
+                <div class="loading-placeholder" style="padding: 3px; font-size: 0.8em;">Enter monthly investment amount and click Calculate</div>
+            </div>
+        </div>
+
+        <!-- Investment History (Scrollable) -->
+        <div class="side-card">
+            <h3>📈 Investment Timeline</h3>
+                        <div id="nasdaq-investment-history" class="scrollable-table-container" style="height: auto; min-height: 750px; max-width: 100%; overflow-x: auto; overflow-y: visible; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+                <table class="table table-striped" style="width: 100%; min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 80px;">Date</th>
+                            <th style="min-width: 70px;">Price</th>
+                            <th style="min-width: 80px;">Shares</th>
+                            <th style="min-width: 90px;">Invested</th>
+                            <th style="min-width: 90px;">Value</th>
+                            <th style="min-width: 80px;">Return</th>
+                            <th style="min-width: 70px;">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="7">Enter investment amount and click Calculate to see timeline</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+<!-- End NASDAQ Tab -->
+
+<!-- Helsinki Tab Content -->
+<div id="helsinki-tab" class="tab-content">
+<!-- Top controls bar -->
+<div class="card" style="padding: 8px;">
+    <div style="display: flex; gap: 1rem; margin: 0.5rem 0; flex-wrap: wrap; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="helsinki-stock-selector" style="font-weight: bold; color: #2c3e50;">📊 Select Stock:</label>
+            <div style="position: relative;">
+                <input type="text" id="helsinki-stock-search" placeholder="Search stocks..." 
+                       style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 180px; margin-right: 0.5rem;">
+                <select id="helsinki-stock-selector" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;">
+                    <option value="">Loading available stocks...</option>
+                </select>
+            </div>
+            <small style="color: #666; font-style: italic;">*Only stocks with data are shown</small>
+        </div>
+        
+        <a href="{{ url_for('dashboard') }}" class="btn" style="background: #95a5a6;">← Back to Dashboard</a>
+        {% if current_user.is_authenticated and current_user.has_permission('stock_admin') %}
+        <button class="btn" style="background: #e67e22;" id="helsinki-fetch-btn">
+            🔄 Fetch Latest Data
+        </button>
+        {% endif %}
+        <button class="btn" style="background: #27ae60;" id="helsinki-refresh-btn">
+            ♻️ Refresh Dashboard
+        </button>
+    </div>
+</div>
+
+<!-- 2-Column Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Main Column - Left Side -->
+    <div class="main-column">
+        <!-- Price Chart -->
+        <div class="card">
+            <h2 id="helsinki-chart-title">Loading Chart...</h2>
+            <div style="display: flex; gap: 1rem; margin: 0.5rem 0; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="helsinki-chart-interval">Interval:</label>
+                    <select id="helsinki-chart-interval" style="padding: 0.5rem;">
+                        <option value="1h">1 Hour</option>
+                        <option value="1d">1 Day</option>
+                        <option value="1wk">1 Week</option>
+                        <option value="1mo" selected>1 Month</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <label for="helsinki-chart-limit">Data Points:</label>
+                    <select id="helsinki-chart-limit" style="padding: 0.5rem;">
+                        <option value="30">Last 30</option>
+                        <option value="100">Last 100</option>
+                        <option value="200">Last 200</option>
+                        <option value="500">Last 500</option>
+                        <option value="1000">Last 1,000</option>
+                        <option value="2000">Last 2,000</option>
+                        <option value="5000" selected>Last 5,000</option>
+                        <option value="10000">All Available Data</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="position: relative; height: 400px;">
+                <canvas id="helsinki-priceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Yearly Growth Analysis -->
+        <div class="card">
+            <h2 style="margin-bottom: 0.5rem;">📊 Yearly Growth Analysis</h2>
+            <p style="margin: 0.5rem 0;">Historical yearly performance of the selected stock/index</p>
+            <div class="scrollable-table-container" style="max-height: 500px; overflow-y: auto; overflow-x: auto; border: 1px solid #ddd; border-radius: 4px;">
+                <table id="helsinki-yearly-growth-table" class="table" style="width: 100%; margin: 0;">
+                    <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                        <tr>
+                            <th>Year</th>
+                            <th>Start Price</th>
+                            <th>End Price</th>
+                            <th>Price Change</th>
+                            <th>Growth %</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="loading-placeholder">Loading yearly growth data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Column - Right Side -->
+    <div class="side-column">
+        <!-- Investment Calculator -->
+        <div class="side-card investment-calculator">
+            <h3 style="margin-bottom: 2px;">💰 Investment Calculator</h3>
+            <p style="font-size: 0.8em; color: #666; margin: 0 0 3px 0;">Calculate returns from regular monthly investments</p>
+            
+            <div style="margin: 3px 0;">
+                <label for="helsinki-monthly-investment" style="font-weight: bold; display: block; margin-bottom: 1px; font-size: 0.8em;">Monthly Investment:</label>
+                <div style="display: flex; align-items: center; gap: 2px;">
+                    <input type="number" id="helsinki-monthly-investment" value="500" min="1" max="10000" 
+                           style="flex: 1; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.85em; height: 28px;"
+                           onchange="calculateInvestment('helsinki')">
+                    <span style="font-weight: bold; font-size: 0.8em;">EUR</span>
+                </div>
+            </div>
+            
+            <div style="margin: 3px 0;">
+                <label for="helsinki-start-year" style="font-weight: bold; display: block; margin-bottom: 1px; font-size: 0.8em;">Starting Year:</label>
+                <select id="helsinki-start-year" style="width: 100%; padding: 3px; border: 1px solid #ddd; border-radius: 3px; font-size: 0.85em; height: 28px;" onchange="calculateInvestment('helsinki')">
+                    <option value="">Use earliest available data</option>
+                </select>
+                <small style="color: #666; font-size: 0.7em;">Choose when to start the investment simulation</small>
+            </div>
+            
+            <button class="btn" style="background: #27ae60; width: 100%; margin-top: 2px; padding: 3px; font-size: 0.8em; height: 28px;" onclick="calculateInvestment('helsinki')">
+                🧮 Calculate Returns
+            </button>
+            
+            <!-- Investment Summary -->
+            <div id="helsinki-investment-summary" style="margin: 3px 0 0 0; max-height: 320px; overflow-y: auto; overflow-x: hidden;">
+                <div class="loading-placeholder" style="padding: 3px; font-size: 0.8em;">Enter monthly investment amount and click Calculate</div>
+            </div>
+        </div>
+
+        <!-- Investment History (Scrollable) -->
+        <div class="side-card">
+            <h3>📈 Investment Timeline</h3>
+                        <div id="helsinki-investment-history" class="scrollable-table-container" style="height: auto; min-height: 750px; max-width: 100%; overflow-x: auto; overflow-y: visible; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+                <table class="table table-striped" style="width: 100%; min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 80px;">Date</th>
+                            <th style="min-width: 70px;">Price</th>
+                            <th style="min-width: 80px;">Shares</th>
+                            <th style="min-width: 90px;">Invested</th>
+                            <th style="min-width: 90px;">Value</th>
+                            <th style="min-width: 80px;">Return</th>
+                            <th style="min-width: 70px;">%</th>
+                        </tr>
+                    </thead>
+        </div>
+    </div>
+</div>
+
+</div>
+<!-- End Helsinki Tab -->
+
+<!-- Include required libraries - Local Hosting -->
+<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datatables.min.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/datatables.min.css') }}">
+
+<style>
+.loading-placeholder {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-style: italic;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    padding: 0.5rem; /* Reduced from 1rem */
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+}
+
+.stat-value {
+    font-size: 1.1rem; /* Reduced from 1.5rem */
+    font-weight: bold;
+    margin: 0.2rem 0; /* Reduced from 0.5rem */
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.75rem; /* Reduced from 0.9rem */
+    margin-bottom: 0.1rem; /* Added small margin */
+}
+
+/* Investment calculator specific overrides */
+.investment-calculator .stat-card {
+    padding: 0.4rem; /* Even smaller for investment calculator */
+    margin: 0.1rem 0; /* Reduce spacing between cards */
+}
+
+.investment-calculator .stat-value {
+    font-size: 1rem; /* Smaller font for investment calculator */
+    margin: 0.1rem 0; /* Reduce margins */
+}
+
+.investment-calculator .stat-label {
+    font-size: 0.7rem; /* Smaller labels */
+    margin-bottom: 0.05rem; /* Minimal margin */
+}
+
+.positive { color: #27ae60; }
+.negative { color: #e74c3c; }
+.neutral { color: #7f8c8d; }
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* DataTables customization */
+.dataTables_wrapper {
+    margin-top: 1rem;
+}
+.neutral { color: #7f8c8d; }
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* DataTables customization */
+.dataTables_wrapper {
+    margin-top: 1rem;
+}
+
+.dataTables_filter input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.dataTables_length select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+</style>
+
+<script>
+let nasdaqStockChart = null;
+let helsinkiStockChart = null;
+let currentTab = 'nasdaq';
+
+// Tab switching function
+function switchTab(tabName) {
+    console.log(`Switching to tab: ${tabName}`);
+    
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+        console.log(`Hiding tab: ${tab.id}`);
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const tabContent = document.getElementById(tabName + '-tab');
+    if (tabContent) {
+        tabContent.classList.add('active');
+        console.log(`Activated tab content: ${tabName}-tab`);
+    } else {
+        console.error(`Tab content not found: ${tabName}-tab`);
+    }
+    
+    // Activate selected tab button - find the button programmatically
+    const tabButton = document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`);
+    if (tabButton) {
+        tabButton.classList.add('active');
+        console.log(`Activated tab button for: ${tabName}`);
+    }
+    
+    // Update current tab
+    currentTab = tabName;
+    console.log(`Current tab set to: ${currentTab}`);
+    
+    // Use setTimeout to ensure the DOM has updated before initializing
+    setTimeout(() => {
+        console.log(`Initializing ${tabName} tab with chart status:`, 
+                   tabName === 'nasdaq' ? nasdaqStockChart : helsinkiStockChart);
+        
+        // Initialize the tab if needed
+        if (tabName === 'nasdaq' && !nasdaqStockChart) {
+            console.log('Loading NASDAQ stocks and initializing chart...');
+            loadAvailableStocks('nasdaq');
+            initializeChart('nasdaq');
+        } else if (tabName === 'helsinki' && !helsinkiStockChart) {
+            console.log('Loading Helsinki stocks and initializing chart...');
+            loadAvailableStocks('helsinki');
+            initializeChart('helsinki');
+        }
+        
+        // Refresh dashboard for the current tab
+        refreshDashboard(tabName);
+    }, 100);
+}
+
+// Helper function to get selected stock symbol
+function getSelectedStock(exchange = currentTab) {
+    const selector = document.getElementById(`${exchange}-stock-selector`);
+    return selector ? selector.value : (exchange === 'nasdaq' ? '^IXIC' : 'OMXH25.HE');
+}
+
+// Helper function to get stock display name
+function getStockDisplayName(symbol, exchange = currentTab) {
+    const nasdaqNames = {
+        '^IXIC': 'NASDAQ Composite',
+        '^GSPC': 'S&P 500',
+        '^DJI': 'Dow Jones',
+        'VWRL.L': 'Vanguard All-World ETF',
+        'IWDA.L': 'iShares World ETF',
+        'AAPL': 'Apple Inc.',
+        'MSFT': 'Microsoft',
+        'GOOGL': 'Google',
+        'TSLA': 'Tesla',
+        'OP-MAAILMA': 'OP-Maailma'
+    };
+    
+    const helsinkiNames = {
+        'OMXH25.HE': 'OMX Helsinki 25',
+        'NOKIA.HE': 'Nokia Corporation',
+        'FORTUM.HE': 'Fortum Corporation',
+        'UPM.HE': 'UPM-Kymmene Corporation',
+        'SAMPO.HE': 'Sampo plc'
+    };
+    
+    const names = exchange === 'nasdaq' ? nasdaqNames : helsinkiNames;
+    return names[symbol] || symbol;
+}
+
+// Update chart title based on selected stock
+function updateChartTitle(exchange = currentTab) {
+    const selectedStock = getSelectedStock(exchange);
+    const stockName = getStockDisplayName(selectedStock, exchange);
+    const exchangeName = exchange === 'nasdaq' ? 'NASDAQ' : 'Helsinki';
+    document.getElementById(`${exchange}-chart-title`).textContent = `${stockName} (${selectedStock}) - ${exchangeName} Price Chart`;
+}
+
+// Initialize dashboard
+$(document).ready(function() {
+    initializeChart();
+    // Note: updateChart() will be called after stocks are loaded and selector is populated
+    
+    // Add event listener for stock selector
+    const stockSelector = document.getElementById('stock-selector');
+    if (stockSelector) {
+        stockSelector.addEventListener('change', function() {
+            console.log('Stock changed to:', this.value);
+            refreshDashboard();
+        });
+    }
+    
+    // Auto-refresh every 5 minutes
+    setInterval(refreshDashboard, 300000);
+});
+
+function initializeChart(exchange = currentTab) {
+    const canvasId = `${exchange}-priceChart`;
+    const canvas = document.getElementById(canvasId);
+    
+    console.log(`Initializing chart for ${exchange}, canvas: ${canvasId}`, canvas);
+    
+    if (!canvas) {
+        console.error(`Canvas element ${canvasId} not found`);
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    const selectedStock = getSelectedStock(exchange);
+    const stockName = getStockDisplayName(selectedStock, exchange);
+    
+    // Destroy existing chart for this exchange if it exists
+    const chartVariable = exchange === 'nasdaq' ? 'nasdaqStockChart' : 'helsinkiStockChart';
+    if (window[chartVariable]) {
+        console.log(`Destroying existing ${exchange} chart`);
+        window[chartVariable].destroy();
+    }
+    
+    console.log(`Creating new ${exchange} chart for ${stockName}`);
+    window[chartVariable] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: stockName,
+                data: [],
+                borderColor: exchange === 'nasdaq' ? '#3498db' : '#e67e22',
+                backgroundColor: exchange === 'nasdaq' ? 'rgba(52, 152, 219, 0.1)' : 'rgba(230, 126, 34, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': $' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date/Time'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Price ($)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateChart(exchange = currentTab) {
+    const intervalSelect = document.getElementById(`${exchange}-chart-interval`);
+    const limitSelect = document.getElementById(`${exchange}-chart-limit`);
+    
+    if (!intervalSelect || !limitSelect) {
+        console.error(`Chart control elements not found for ${exchange}:`, {
+            interval: intervalSelect,
+            limit: limitSelect
+        });
+        return;
+    }
+    
+    const interval = intervalSelect.value;
+    const limit = limitSelect.value;
+    const selectedStock = getSelectedStock(exchange);
+    
+    // Get the appropriate chart instance
+    const chartVariable = exchange === 'nasdaq' ? 'nasdaqStockChart' : 'helsinkiStockChart';
+    const chart = window[chartVariable];
+    
+    if (!chart) {
+        console.error(`Chart not initialized for ${exchange}`);
+        initializeChart(exchange);
+        return;
+    }
+    
+    console.log(`Loading chart data: symbol=${selectedStock}, interval=${interval}, limit=${limit}`);
+    
+    // Build API URL with limit parameter
+    let apiUrl = `/stocks/api/prices?symbol=${selectedStock}&interval=${interval}&limit=${limit}`;
+    
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Chart response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Chart data received:', data);
+            if (data.error) {
+                console.error('Chart API error:', data.error);
+                alert(`Error loading chart data: ${data.error}`);
+                return;
+            }
+            
+            if (!data.data || data.data.length === 0) {
+                console.warn('No chart data available for:', selectedStock);
+                return;
+            }
+            
+            const stockData = data.data.reverse(); // Reverse to show chronological order
+            const labels = stockData.map(item => new Date(item.datetime).toLocaleDateString());
+            const prices = stockData.map(item => item.close_price);
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = prices;
+            chart.data.datasets[0].label = getStockDisplayName(selectedStock, exchange);
+            chart.update();
+        })
+        .catch(error => {
+            console.error('Error updating chart:', error);
+            alert(`Connection error: ${error.message}`);
+        });
+}
+
+function fetchStockData() {
+    const fetchBtn = document.getElementById('fetch-btn');
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = '🔄 Fetching...';
+    
+    fetch('/api/stocks/fetch', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully fetched ${data.records} stock price records!`);
+                refreshDashboard();
+            } else {
+                alert(`Error fetching stock data: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching stock data:', error);
+            alert('Error triggering stock data fetch');
+        })
+        .finally(() => {
+            fetchBtn.disabled = false;
+            fetchBtn.textContent = '🔄 Fetch Latest Data';
+        });
+}
+
+function refreshDashboard(exchange = currentTab) {
+    updateChartTitle(exchange);
+    updateChart(exchange);
+    loadYearlyGrowth(exchange);
+    calculateInvestment(exchange);
+}
+
+function loadYearlyGrowth(exchange = currentTab) {
+    const selectedStock = getSelectedStock(exchange);
+    console.log('Loading yearly growth analysis for:', selectedStock);
+    
+    fetch(`/stocks/api/yearly-growth?symbol=${selectedStock}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.yearly_growth && data.yearly_growth.length > 0) {
+                displayYearlyGrowthTable(data.yearly_growth, exchange);
+            } else {
+                document.getElementById(`${exchange}-yearly-growth-table`).innerHTML = 
+                    '<tbody><tr><td colspan="6">No yearly growth data available</td></tr></tbody>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading yearly growth:', error);
+            document.getElementById(`${exchange}-yearly-growth-table`).innerHTML = 
+                '<tbody><tr><td colspan="6">Error loading yearly growth data</td></tr></tbody>';
+        });
+}
+
+function displayYearlyGrowthTable(growthData, exchange = currentTab) {
+    let tableHtml = '<tbody>';
+    
+    growthData.forEach(row => {
+        const isPositive = row.growth_percentage > 0;
+        const performanceIcon = isPositive ? '📈' : '📉';
+        const performanceClass = isPositive ? 'color: #27ae60' : 'color: #e74c3c';
+        const currencySymbol = exchange === 'helsinki' ? '€' : '$';
+        
+        tableHtml += `
+            <tr>
+                <td><strong>${row.year}</strong></td>
+                <td>${currencySymbol}${parseFloat(row.start_price).toFixed(2)}</td>
+                <td>${currencySymbol}${parseFloat(row.end_price).toFixed(2)}</td>
+                <td style="${performanceClass}">${currencySymbol}${parseFloat(row.price_change).toFixed(2)}</td>
+                <td style="${performanceClass}"><strong>${parseFloat(row.growth_percentage).toFixed(2)}%</strong></td>
+                <td style="${performanceClass}">${performanceIcon} ${isPositive ? 'Gain' : 'Loss'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += '</tbody>';
+    
+    // Update only the tbody content
+    const table = document.getElementById(`${exchange}-yearly-growth-table`);
+    const existingTbody = table.querySelector('tbody');
+    if (existingTbody) {
+        existingTbody.innerHTML = tableHtml.replace('<tbody>', '').replace('</tbody>', '');
+    } else {
+        table.innerHTML = tableHtml;
+    }
+}
+
+function calculateInvestment(exchange = currentTab) {
+    const monthlyAmount = document.getElementById(`${exchange}-monthly-investment`).value;
+    const selectedStock = getSelectedStock(exchange);
+    const startYear = document.getElementById(`${exchange}-start-year`).value;
+    
+    if (!monthlyAmount || monthlyAmount <= 0) {
+        document.getElementById(`${exchange}-investment-summary`).innerHTML = 
+            '<div class="loading-placeholder">Please enter a valid monthly investment amount</div>';
+        return;
+    }
+    
+    // Determine currency symbol for logging
+    const currencySymbol = exchange === 'helsinki' ? '€' : '$';
+    
+    console.log(`Calculating investment returns for ${selectedStock} at ${currencySymbol}${monthlyAmount}/month starting from ${startYear || 'earliest available'}...`);
+    
+    // Show loading state
+    document.getElementById(`${exchange}-investment-summary`).innerHTML = 
+        '<div class="loading-placeholder">Calculating investment returns...</div>';
+    document.getElementById(`${exchange}-investment-history`).innerHTML = '';
+    
+    // Build API URL with optional start_year parameter
+    let apiUrl = `/stocks/api/investment-calculator?symbol=${selectedStock}&monthly_investment=${monthlyAmount}`;
+    if (startYear) {
+        apiUrl += `&start_year=${startYear}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.summary && data.investment_history) {
+                displayInvestmentResults(data, exchange);
+            } else if (data.error) {
+                document.getElementById(`${exchange}-investment-summary`).innerHTML = 
+                    `<div style="color: #e74c3c;">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error calculating investment:', error);
+            document.getElementById(`${exchange}-investment-summary`).innerHTML = 
+                '<div style="color: #e74c3c;">Error calculating investment returns</div>';
+        });
+}
+
+function displayInvestmentResults(data, exchange = currentTab) {
+    const summary = data.summary;
+    const monthlyAmount = data.monthly_investment || 0;
+    const startYear = document.getElementById(`${exchange}-start-year`).value;
+    const currency = summary.currency || (exchange === 'helsinki' ? 'EUR' : 'USD');
+    const currencySymbol = currency === 'EUR' ? '€' : '$';
+    
+    // Add null checks for all summary properties
+    const totalInvested = summary.total_invested || 0;
+    const currentValue = summary.current_value || 0;
+    const totalReturn = summary.total_return || 0;
+    const returnPercentage = summary.return_percentage || 0;
+    const annualizedReturn = summary.annualized_return || 0;
+    const yearsInvested = summary.years_invested || Math.floor((summary.investment_months || 0)/12);
+    
+    // Display summary cards
+    const summaryHtml = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.2rem; margin: 0.2rem 0;">
+            <div class="stat-card">
+                <div class="stat-label">Monthly</div>
+                <div class="stat-value">${currencySymbol}${monthlyAmount.toFixed(0)}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Start Year</div>
+                <div class="stat-value">${startYear || 'Earliest'}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Invested</div>
+                <div class="stat-value">${currencySymbol}${(totalInvested/1000).toFixed(0)}k</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Value</div>
+                <div class="stat-value">${currencySymbol}${(currentValue/1000).toFixed(0)}k</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Return</div>
+                <div class="stat-value" style="color: ${totalReturn >= 0 ? '#27ae60' : '#e74c3c'}">
+                    ${returnPercentage.toFixed(1)}%
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Annual</div>
+                <div class="stat-value" style="color: ${annualizedReturn >= 0 ? '#27ae60' : '#e74c3c'}">
+                    ${annualizedReturn.toFixed(1)}%
+                </div>
+            </div>
+        </div>
+        <div style="margin: 0.3rem 0; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; font-size: 0.8em; border: 1px solid #e9ecef;">
+            <strong>📊 Result:</strong> Starting ${startYear ? `in ${startYear}` : 'from earliest data'}, ${currencySymbol}${monthlyAmount}/month for ${yearsInvested} years: 
+            <span style="color: ${totalReturn >= 0 ? '#27ae60' : '#e74c3c'}; font-weight: bold;">
+                ${currencySymbol}${totalInvested.toLocaleString()} → ${currencySymbol}${currentValue.toLocaleString()}
+            </span>
+            (${returnPercentage.toFixed(1)}% total, ${annualizedReturn.toFixed(1)}% annually)
+        </div>
+    `;
+    
+    document.getElementById(`${exchange}-investment-summary`).innerHTML = summaryHtml;
+    
+    // Display recent investment history (last 20 years, yearly data) - only for real data
+    if (data.investment_history && data.investment_history.length > 0) {
+        // Filter to get yearly data (every 12th entry starting from month 12)
+        const yearlyHistory = data.investment_history.filter((entry, index) => 
+            (index + 1) % 12 === 0 && index >= 11
+        ).slice(-20); // Last 20 years
+        
+        let historyHtml = `
+            <h3 style="margin: 1rem; color: #2c3e50;">📈 Investment History (Last 20 Years)</h3>
+            <table class="table" style="width: 100%; font-size: 0.9em; margin: 0;">
+                <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 10;">
+                    <tr>
+                        <th>Year</th>
+                        <th>Price</th>
+                        <th>Shares Bought</th>
+                        <th>Total Invested</th>
+                        <th>Current Value</th>
+                        <th>Return</th>
+                        <th>Return %</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        yearlyHistory.forEach(entry => {
+            const returnClass = (entry.total_return || 0) >= 0 ? 'color: #27ae60' : 'color: #e74c3c';
+            // Extract year from month string (e.g., "2023-12" -> "Year 2023")
+            const year = entry.month ? entry.month.split('-')[0] : 'Unknown';
+            historyHtml += `
+                <tr>
+                    <td>Year ${year}</td>
+                    <td>${currencySymbol}${(entry.price || 0).toFixed(2)}</td>
+                    <td>${(entry.shares_purchased || 0).toFixed(4)}</td>
+                    <td>${currencySymbol}${(entry.total_invested || 0).toLocaleString()}</td>
+                    <td>${currencySymbol}${(entry.current_value || 0).toLocaleString()}</td>
+                    <td style="${returnClass}">${currencySymbol}${(entry.total_return || 0).toLocaleString()}</td>
+                    <td style="${returnClass}">${(entry.return_percentage || 0).toFixed(2)}%</td>
+                </tr>
+            `;
+        });
+        
+        historyHtml += '</tbody></table>';
+        document.getElementById(`${exchange}-investment-history`).innerHTML = historyHtml;
+    } else {
+        // Show when no investment history data is available
+        console.log('No investment history data available:', data);
+        const noDataMessage = data.investment_history 
+            ? 'No investment history available for this time period.' 
+            : 'Unable to load investment history data.';
+        document.getElementById(`${exchange}-investment-history`).innerHTML = 
+            `<div style="margin: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; text-align: center; color: #666;">${noDataMessage}</div>`;
+    }
+}
+
+// Load available stocks from API and populate dropdown
+function loadAvailableStocks(exchange = currentTab) {
+    console.log(`Loading available stocks for: ${exchange}`);
+    
+    // Build API URL with exchange parameter
+    let apiUrl = '/stocks/api/available';
+    if (exchange === 'helsinki') {
+        apiUrl += '?exchange=HELSINKI';
+    } else if (exchange === 'nasdaq') {
+        apiUrl += '?exchange=NASDAQ';
+    }
+    
+    // Load stocks from API
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(stocks => {
+            console.log(`${exchange} stocks data:`, stocks);
+            populateStockDropdownForExchange(stocks, exchange);
+        })
+        .catch(error => {
+            console.error('Error loading available stocks:', error);
+            const selector = document.getElementById(`${exchange}-stock-selector`);
+            selector.innerHTML = '<option value="">Error loading stocks</option>';
+        });
+}
+
+function populateStockDropdownForExchange(stocks, exchange) {
+    console.log(`Populating stock dropdown for ${exchange} with ${stocks.length} stocks`);
+    
+    const selector = document.getElementById(`${exchange}-stock-selector`);
+    const searchInput = document.getElementById(`${exchange}-stock-search`);
+    
+    if (!selector) {
+        console.error(`Stock selector not found: ${exchange}-stock-selector`);
+        return;
+    }
+    
+    selector.innerHTML = ''; // Clear loading message
+    
+    if (stocks.length === 0) {
+        selector.innerHTML = '<option value="">No stocks with data available</option>';
+        return;
+    }
+    
+    // Store all stocks for search filtering
+    window[`${exchange}AllStocks`] = stocks;
+    
+    // Populate dropdown with all stocks initially
+    populateStockDropdown(stocks, exchange);
+    
+    // Set default selection to first available stock
+    if (stocks.length > 0) {
+        selector.value = stocks[0].symbol;
+        console.log(`Set default stock for ${exchange}: ${stocks[0].symbol}`);
+        
+        // Load available years for the default stock (only for current active tab)
+        if (exchange === currentTab) {
+            loadAvailableYears(stocks[0].symbol, exchange);
+            // Trigger dashboard refresh for default stock
+            setTimeout(() => {
+                refreshDashboard(exchange);
+            }, 100);
+        }
+    }
+    
+    // Add search functionality
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const filteredStocks = stocks.filter(stock => 
+                stock.name.toLowerCase().includes(searchTerm) || 
+                stock.symbol.toLowerCase().includes(searchTerm)
+            );
+            
+            const currentSelection = selector.value;
+            populateStockDropdown(filteredStocks, exchange);
+            
+            // If search resulted in only one stock and it's different from current selection,
+            // and this is the active tab, update the dashboard immediately
+            if (filteredStocks.length === 1 && 
+                filteredStocks[0].symbol !== currentSelection && 
+                exchange === currentTab) {
+                console.log(`Search narrowed to single stock for ${exchange}: ${filteredStocks[0].symbol}`);
+                loadAvailableYears(filteredStocks[0].symbol, exchange);
+                refreshDashboard(exchange);
+            }
+        });
+    }
+    
+    console.log(`Loaded ${stocks.length} ${exchange} stocks with data:`, stocks.map(s => s.symbol));
+}
+
+function populateStockDropdown(stocks, exchange = currentTab) {
+    const selector = document.getElementById(`${exchange}-stock-selector`);
+    const currentValue = selector.value; // Preserve current selection if possible
+    
+    selector.innerHTML = '';
+    
+    if (stocks.length === 0) {
+        selector.innerHTML = '<option value="">No matching stocks found</option>';
+        return;
+    }
+    
+    // Add each stock to the dropdown
+    stocks.forEach(stock => {
+        const option = document.createElement('option');
+        option.value = stock.symbol;
+        // For Helsinki stocks, show simpler format since they're placeholder data
+        if (exchange === 'helsinki') {
+            option.textContent = `${stock.name} (${stock.symbol})`;
+        } else {
+            option.textContent = `${stock.name} (${stock.record_count.toLocaleString()} records)`;
+        }
+        selector.appendChild(option);
+    });
+    
+    // Try to restore previous selection
+    if (currentValue && stocks.find(s => s.symbol === currentValue)) {
+        selector.value = currentValue;
+    } else if (stocks.length > 0) {
+        const newValue = stocks[0].symbol;
+        selector.value = newValue;
+        
+        // If the value changed or this is the first time selecting a stock,
+        // trigger the change event to update the dashboard
+        if (newValue !== currentValue && exchange === currentTab) {
+            console.log(`Auto-selecting stock for ${exchange}: ${newValue}`);
+            // Trigger change event manually
+            const changeEvent = new Event('change', { bubbles: true });
+            selector.dispatchEvent(changeEvent);
+        }
+    }
+}
+
+function loadAvailableYears(symbol, exchange = currentTab) {
+    // Load years from API for both NASDAQ and Helsinki
+    fetch(`/stocks/api/available-years?symbol=${symbol}`)
+        .then(response => response.json())
+        .then(data => {
+            const yearSelect = document.getElementById(`${exchange}-start-year`);
+            yearSelect.innerHTML = '<option value="">Use earliest available data</option>';
+            
+            if (data.years && data.years.length > 0) {
+                data.years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                });
+                
+                // Set default to earliest available year if data exists
+                if (data.years && data.years.length > 0) {
+                    yearSelect.value = data.years[0]; // First year in the array (earliest)
+                }
+            } else {
+                // Fallback for exchanges without API data
+                console.warn(`No year data available for ${symbol} on ${exchange}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading available years:', error);
+            // Fallback: create some default years
+            const yearSelect = document.getElementById(`${exchange}-start-year`);
+            yearSelect.innerHTML = '<option value="">Use earliest available data</option>';
+            
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= currentYear - 20; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+            
+            // Set default to earliest available (20 years ago)
+            yearSelect.value = currentYear - 20;
+        });
+}
+
+// Initialize event listeners when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, initializing dashboard...');
+    
+    // Initialize both exchanges with their data
+    loadAvailableStocks('nasdaq');
+    loadAvailableStocks('helsinki');
+    
+    // Set default tab to NASDAQ
+    switchTab('nasdaq');
+    
+    // Add event listeners for both exchanges
+    ['nasdaq', 'helsinki'].forEach(exchange => {
+        // Add event listener for stock selector
+        const stockSelector = document.getElementById(`${exchange}-stock-selector`);
+        if (stockSelector) {
+            stockSelector.addEventListener('change', function() {
+                console.log(`${exchange} stock changed to:`, this.value);
+                if (this.value && exchange === currentTab) {
+                    loadAvailableYears(this.value, exchange);
+                    refreshDashboard(exchange);
+                }
+            });
+        }
+        
+        // Add event listeners for interval selects
+        const intervalSelect = document.getElementById(`${exchange}-chart-interval`);
+        if (intervalSelect) {
+            intervalSelect.addEventListener('change', () => {
+                if (exchange === currentTab) {
+                    updateChart(exchange);
+                }
+            });
+        }
+        
+        const limitSelect = document.getElementById(`${exchange}-chart-limit`);
+        if (limitSelect) {
+            limitSelect.addEventListener('change', () => {
+                if (exchange === currentTab) {
+                    updateChart(exchange);
+                }
+            });
+        }
+        
+        // Add event listener for investment calculator (buttons use onclick, so no need for separate listeners)
+        
+        const monthlyInvestment = document.getElementById(`${exchange}-monthly-investment`);
+        if (monthlyInvestment) {
+            monthlyInvestment.addEventListener('input', () => {
+                if (exchange === currentTab) {
+                    calculateInvestment(exchange);
+                }
+            });
+        }
+        
+        const startYear = document.getElementById(`${exchange}-start-year`);
+        if (startYear) {
+            startYear.addEventListener('change', () => {
+                if (exchange === currentTab) {
+                    calculateInvestment(exchange);
+                }
+            });
+        }
+    });
+    
+});
+</script>
+
+{% endblock %}

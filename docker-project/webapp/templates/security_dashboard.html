@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block title %}Security Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">🔒 Security Dashboard</h2>
+            
+            <!-- Security Overview Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body">
+                            <h5 class="card-title">Active Sessions</h5>
+                            <h3 id="activeSessions">-</h3>
+                            <small>Currently logged in users</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5 class="card-title">Activity (24h)</h5>
+                            <h3 id="recentActivity">-</h3>
+                            <small>User actions today</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5 class="card-title">Security Events</h5>
+                            <h3 id="securityEvents">-</h3>
+                            <small>Unresolved events</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-danger">
+                        <div class="card-body">
+                            <h5 class="card-title">Failed Logins</h5>
+                            <h3 id="failedLogins">-</h3>
+                            <small>Last 24 hours</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs for different views -->
+            <ul class="nav nav-tabs" id="securityTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="sessions-tab" data-bs-toggle="tab" data-bs-target="#sessions" type="button" role="tab">
+                        Active Sessions
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                        User Activity
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab">
+                        Audit Trail
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab">
+                        Security Events
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="securityTabContent">
+                <!-- Active Sessions Tab -->
+                <div class="tab-pane fade show active" id="sessions" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Active User Sessions</h5>
+                            <button class="btn btn-sm btn-primary" onclick="refreshSessions()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>IP Address</th>
+                                            <th>Login Time</th>
+                                            <th>Last Activity</th>
+                                            <th>Idle Time</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sessionsTableBody">
+                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Activity Tab -->
+                <div class="tab-pane fade" id="activity" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Recent User Activity</h5>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="activityTypeFilter">
+                                        <option value="">All Activity Types</option>
+                                        <option value="login">Login</option>
+                                        <option value="logout">Logout</option>
+                                        <option value="page_view">Page Views</option>
+                                        <option value="widget_action">Widget Actions</option>
+                                        <option value="settings_change">Settings Changes</option>
+                                        <option value="data_modification">Data Modifications</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-sm btn-primary" onclick="refreshActivity()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>User</th>
+                                            <th>Activity</th>
+                                            <th>Description</th>
+                                            <th>IP Address</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="activityTableBody">
+                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav>
+                                <ul class="pagination justify-content-center" id="activityPagination">
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Trail Tab -->
+                <div class="tab-pane fade" id="audit" role="tabpanel">
+                    <div class="card mt-3">
+                                                <div class="card-header">
+                            <h5 class="mb-0">User Activity Audit Trail</h5>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="auditCategoryFilter">
+                                        <option value="">All Categories</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="auditActionFilter">
+                                        <option value="">All Actions</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control form-control-sm" id="auditUsernameFilter" placeholder="Filter by username">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="auditSuccessFilter">
+                                        <option value="">All Results</option>
+                                        <option value="true">Successful</option>
+                                        <option value="false">Failed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <button class="btn btn-sm btn-primary" onclick="refreshAudit()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>User</th>
+                                            <th>Category</th>
+                                            <th>Action</th>
+                                            <th>Description</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditTableBody">
+                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav>
+                                <ul class="pagination justify-content-center" id="auditPagination">
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Events Tab -->
+                <div class="tab-pane fade" id="events" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Security Events</h5>
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="severityFilter">
+                                        <option value="">All Severities</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="resolvedFilter">
+                                        <option value="">All Events</option>
+                                        <option value="false">Unresolved</option>
+                                        <option value="true">Resolved</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-sm btn-primary" onclick="refreshEvents()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Severity</th>
+                                            <th>Event Type</th>
+                                            <th>Description</th>
+                                            <th>IP Address</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="eventsTableBody">
+                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <nav>
+                                <ul class="pagination justify-content-center" id="eventsPagination">
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Security Dashboard JavaScript
+let currentActivityPage = 1;
+let currentAuditPage = 1;
+let currentEventsPage = 1;
+
+// Load dashboard data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardStats();
+    loadSessions();
+    loadActivity();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(loadDashboardStats, 30000);
+    setInterval(loadSessions, 30000);
+});
+
+function loadDashboardStats() {
+    // Load summary statistics (you'll need to create these endpoints)
+    // For now, we'll show placeholder data
+}
+
+function loadSessions() {
+    fetch('/api/security/active-sessions')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSessionsTable(data.data.sessions);
+                document.getElementById('activeSessions').textContent = data.data.total_active;
+            } else {
+                console.error('Error loading sessions:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading sessions:', error);
+        });
+}
+
+function updateSessionsTable(sessions) {
+    const tbody = document.getElementById('sessionsTableBody');
+    
+    if (sessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No active sessions</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = sessions.map(session => `
+        <tr>
+            <td>${session.username} (${session.email})</td>
+            <td>${session.ip_address || 'Unknown'}</td>
+            <td>${new Date(session.login_time).toLocaleString()}</td>
+            <td>${new Date(session.last_activity).toLocaleString()}</td>
+            <td>${Math.round(session.idle_minutes)} minutes</td>
+            <td>
+                <button class="btn btn-sm btn-danger" onclick="terminateSession('${session.id}')">
+                    <i class="fas fa-times"></i> Terminate
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function terminateSession(sessionId) {
+    fetch(`/api/security/session/${sessionId}/terminate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadSessions(); // Refresh the sessions list
+        } else {
+            alert('Error terminating session: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error terminating session:', error);
+        alert('Error terminating session');
+    });
+}
+
+function loadActivity(page = 1) {
+    const activityType = document.getElementById('activityTypeFilter').value;
+    let url = `/api/security/user-activity?page=${page}`;
+    
+    if (activityType) {
+        url += `&activity_type=${activityType}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateActivityTable(data.data.activities);
+                updatePagination('activityPagination', data.data.pagination, loadActivity);
+            } else {
+                console.error('Error loading activity:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading activity:', error);
+        });
+}
+
+function updateActivityTable(activities) {
+    const tbody = document.getElementById('activityTableBody');
+    
+    if (activities.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No activity found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = activities.map(activity => `
+        <tr>
+            <td>${new Date(activity.timestamp).toLocaleString()}</td>
+            <td>${activity.username || 'Anonymous'}</td>
+            <td><span class="badge bg-secondary">${activity.activity_type}</span></td>
+            <td>${activity.activity_description || ''}</td>
+            <td>${activity.ip_address || ''}</td>
+            <td><span class="badge ${getStatusColor(activity.response_status)}">${activity.response_status}</span></td>
+        </tr>
+    `).join('');
+}
+
+function getStatusColor(status) {
+    if (status >= 200 && status < 300) return 'bg-success';
+    if (status >= 300 && status < 400) return 'bg-info';
+    if (status >= 400 && status < 500) return 'bg-warning';
+    if (status >= 500) return 'bg-danger';
+    return 'bg-secondary';
+}
+
+function loadAudit(page = 1) {
+    const category = document.getElementById('auditCategoryFilter').value;
+    const action = document.getElementById('auditActionFilter').value;
+    const username = document.getElementById('auditUsernameFilter').value;
+    const success = document.getElementById('auditSuccessFilter').value;
+    
+    let url = `/api/security/audit-trail?page=${page}`;
+    
+    if (category) url += `&category=${category}`;
+    if (action) url += `&action=${action}`;
+    if (username) url += `&username=${username}`;
+    if (success) url += `&success=${success}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateAuditTable(data.data.audit_records);
+                updatePagination('auditPagination', data.data.pagination, loadAudit);
+                updateAuditFilters(data.data.filters);
+            } else {
+                console.error('Error loading audit:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading audit:', error);
+        });
+}
+
+function updateAuditTable(records) {
+    const tbody = document.getElementById('auditTableBody');
+    
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No audit records found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(record => `
+        <tr>
+            <td>${new Date(record.timestamp).toLocaleString()}</td>
+            <td>${record.username || 'System'}</td>
+            <td><span class="badge ${getCategoryColor(record.category)}">${record.category}</span></td>
+            <td>${record.action}</td>
+            <td title="${record.description}">${truncateText(record.description, 50)}</td>
+            <td>
+                ${record.success ? 
+                    '<span class="badge bg-success">Success</span>' : 
+                    `<span class="badge bg-danger" title="${record.error_message || 'Failed'}">Failed</span>`
+                }
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateAuditFilters(filters) {
+    // Update category filter
+    const categoryFilter = document.getElementById('auditCategoryFilter');
+    const currentCategory = categoryFilter.value;
+    categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+        filters.categories.map(cat => 
+            `<option value="${cat}" ${cat === currentCategory ? 'selected' : ''}>${cat}</option>`
+        ).join('');
+    
+    // Update action filter
+    const actionFilter = document.getElementById('auditActionFilter');
+    const currentAction = actionFilter.value;
+    actionFilter.innerHTML = '<option value="">All Actions</option>' + 
+        filters.actions.map(action => 
+            `<option value="${action}" ${action === currentAction ? 'selected' : ''}>${action}</option>`
+        ).join('');
+}
+
+function getCategoryColor(category) {
+    const colors = {
+        'Authentication': 'bg-primary',
+        'Widgets': 'bg-info',
+        'Settings': 'bg-warning',
+        'Admin': 'bg-danger',
+        'Dashboard': 'bg-success',
+        'System': 'bg-secondary'
+    };
+    return colors[category] || 'bg-secondary';
+}
+
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+function getActionColor(action) {
+    switch(action) {
+        case 'INSERT': return 'bg-success';
+        case 'UPDATE': return 'bg-warning';
+        case 'DELETE': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function loadEvents(page = 1) {
+    const severity = document.getElementById('severityFilter').value;
+    const resolved = document.getElementById('resolvedFilter').value;
+    let url = `/api/security/security-events?page=${page}`;
+    
+    if (severity) url += `&severity=${severity}`;
+    if (resolved) url += `&resolved=${resolved}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateEventsTable(data.data.events);
+                updatePagination('eventsPagination', data.data.pagination, loadEvents);
+            } else {
+                console.error('Error loading events:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading events:', error);
+        });
+}
+
+function updateEventsTable(events) {
+    const tbody = document.getElementById('eventsTableBody');
+    
+    if (events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No security events found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = events.map(event => `
+        <tr>
+            <td>${new Date(event.timestamp).toLocaleString()}</td>
+            <td><span class="badge ${getSeverityColor(event.severity)}">${event.severity}</span></td>
+            <td><code>${event.event_type}</code></td>
+            <td>${event.description}</td>
+            <td>${event.ip_address || ''}</td>
+            <td>
+                <span class="badge ${event.resolved ? 'bg-success' : 'bg-warning'}">
+                    ${event.resolved ? 'Resolved' : 'Unresolved'}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getSeverityColor(severity) {
+    switch(severity) {
+        case 'low': return 'bg-info';
+        case 'medium': return 'bg-warning';
+        case 'high': return 'bg-danger';
+        case 'critical': return 'bg-dark';
+        default: return 'bg-secondary';
+    }
+}
+
+function updatePagination(elementId, pagination, loadFunction) {
+    const element = document.getElementById(elementId);
+    
+    if (pagination.pages <= 1) {
+        element.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Previous button
+    html += `<li class="page-item ${pagination.page === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="${loadFunction.name}(${pagination.page - 1})">Previous</a>
+    </li>`;
+    
+    // Page numbers
+    for (let i = Math.max(1, pagination.page - 2); i <= Math.min(pagination.pages, pagination.page + 2); i++) {
+        html += `<li class="page-item ${i === pagination.page ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="${loadFunction.name}(${i})">${i}</a>
+        </li>`;
+    }
+    
+    // Next button
+    html += `<li class="page-item ${pagination.page === pagination.pages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="${loadFunction.name}(${pagination.page + 1})">Next</a>
+    </li>`;
+    
+    element.innerHTML = html;
+}
+
+// Refresh functions
+function refreshSessions() {
+    loadSessions();
+}
+
+function refreshActivity() {
+    loadActivity(1);
+}
+
+function refreshAudit() {
+    loadAudit(1);
+}
+
+function refreshEvents() {
+    loadEvents(1);
+}
+
+// Tab change handlers
+document.getElementById('activity-tab').addEventListener('click', () => loadActivity(1));
+document.getElementById('audit-tab').addEventListener('click', () => loadAudit(1));
+document.getElementById('events-tab').addEventListener('click', () => loadEvents(1));
+
+// Filter change handlers
+document.getElementById('activityTypeFilter').addEventListener('change', () => loadActivity(1));
+document.getElementById('auditCategoryFilter').addEventListener('change', () => loadAudit(1));
+document.getElementById('auditActionFilter').addEventListener('change', () => loadAudit(1));
+document.getElementById('auditUsernameFilter').addEventListener('input', () => loadAudit(1));
+document.getElementById('auditSuccessFilter').addEventListener('change', () => loadAudit(1));
+document.getElementById('severityFilter').addEventListener('change', () => loadEvents(1));
+document.getElementById('resolvedFilter').addEventListener('change', () => loadEvents(1));
+</script>
+{% endblock %}

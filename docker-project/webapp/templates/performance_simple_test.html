@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Simple Performance Test{% endblock %}
+{% block page_title %}Simple Performance Test{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="alert alert-info">
+        <h4>Testing Database Health Data Loading</h4>
+        <p>Status: <span id="status">Initializing...</span></p>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">Crypto Data</div>
+        <div class="card-body">
+            <p>Total Cryptos: <strong id="cryptoTotal">--</strong></p>
+            <p>Price Records: <strong id="cryptoPriceRecords">--</strong></p>
+            <p>Latest: <strong id="cryptoLatestPrice">--</strong></p>
+        </div>
+    </div>
+    
+    <div class="card mt-3">
+        <div class="card-header">Debug Info</div>
+        <div class="card-body">
+            <pre id="debug" style="max-height: 400px; overflow: auto;">Loading...</pre>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const status = document.getElementById('status');
+    const debug = document.getElementById('debug');
+    
+    status.textContent = 'Fetching data...';
+    debug.textContent = 'Starting fetch...\n';
+    
+    fetch('/api/performance/database/health', {
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        debug.textContent += `Response status: ${response.status}\n`;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        debug.textContent += `Data received: ${JSON.stringify(data, null, 2)}\n`;
+        
+        if (data.success) {
+            status.textContent = '✅ Data loaded successfully!';
+            
+            // Update crypto data
+            document.getElementById('cryptoTotal').textContent = data.data.crypto_prices.total_cryptos || '--';
+            document.getElementById('cryptoPriceRecords').textContent = (data.data.crypto_prices.total_price_records || 0).toLocaleString();
+            document.getElementById('cryptoLatestPrice').textContent = data.data.crypto_prices.latest_data || '--';
+            
+            debug.textContent += '\n✅ Successfully updated DOM elements!';
+        } else {
+            status.textContent = '❌ Error: ' + data.error;
+            debug.textContent += '\n❌ API returned success=false';
+        }
+    })
+    .catch(error => {
+        status.textContent = '❌ Error: ' + error.message;
+        debug.textContent += '\n❌ Error: ' + error.message + '\n' + error.stack;
+    });
+});
+</script>
+{% endblock %}

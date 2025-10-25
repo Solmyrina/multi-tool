@@ -1,0 +1,983 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Monitoring{% endblock %}
+
+{% block page_title %}Performance Monitoring Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        margin-bottom: 20px;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    .metric-card {
+        text-align: center;
+        padding: 15px;
+    }
+    .metric-value {
+        font-size: 2em;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .metric-label {
+        color: #666;
+        font-size: 0.9em;
+    }
+    .alert-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+    .container-status {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .status-running { background-color: #28a745; }
+    .status-stopped { background-color: #dc3545; }
+    .status-paused { background-color: #ffc107; }
+    .refresh-controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    .time-range-selector {
+        margin-left: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Debug Info -->
+    <div class="alert alert-info">
+        <strong>Debug:</strong> Performance Dashboard Template Loaded Successfully
+        <br><small>If you see this message, the template is working. Check browser console for JavaScript debug messages.</small>
+    </div>
+    
+    <div class="refresh-controls">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <button id="refreshBtn" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
+                </button>
+                <div class="form-check form-check-inline ml-3">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                    <label class="form-check-label" for="autoRefresh">
+                        Auto-refresh (30s)
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="time-range-selector">
+                    <label for="timeRange">Time Range:</label>
+                    <select id="timeRange" class="form-control form-control-sm d-inline-block" style="width: auto;">
+                        <option value="1">Last Hour</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="168">Last Week</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Performance Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-server"></i> System Performance</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-primary" id="currentCpu">--%</div>
+                                <div class="metric-label">CPU Usage</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-success" id="currentMemory">--%</div>
+                                <div class="metric-label">Memory Usage</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-warning" id="currentDisk">--%</div>
+                                <div class="metric-label">Disk Usage</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-info" id="currentLoad">--</div>
+                                <div class="metric-label">Load Average</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="systemChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Performance Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-database"></i> Database Performance</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-primary" id="currentConnections">--</div>
+                                <div class="metric-label">Active Connections</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-success" id="currentQps">--</div>
+                                <div class="metric-label">Queries/Second</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-warning" id="currentAvgQuery">--ms</div>
+                                <div class="metric-label">Avg Query Time</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-info" id="currentDbSize">--MB</div>
+                                <div class="metric-label">Database Size</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="databaseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Health Details Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-line"></i> Crypto Data Health</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>Total Cryptocurrencies:</strong></td>
+                                <td id="cryptoTotal">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Price Records:</strong></td>
+                                <td id="cryptoPriceRecords">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Latest Price Data:</strong></td>
+                                <td id="cryptoLatestPrice">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Prices (Last 24h):</strong></td>
+                                <td id="cryptoRecent24h">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Cryptos with Indicators:</strong></td>
+                                <td id="cryptoIndicatorCryptos">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Technical Indicators:</strong></td>
+                                <td id="cryptoIndicatorRecords">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Indicators (Last 24h):</strong></td>
+                                <td id="cryptoIndicators24h">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-bar"></i> Stock & Weather Data</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <td><strong>Total Stocks:</strong></td>
+                                <td id="stockTotal">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Stock Price Records:</strong></td>
+                                <td id="stockPriceRecords">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Latest Stock Data:</strong></td>
+                                <td id="stockLatestData">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Historic Weather Records:</strong></td>
+                                <td id="weatherHistoricRecords">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Weather Locations:</strong></td>
+                                <td id="weatherLocations">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Current Weather Records:</strong></td>
+                                <td id="weatherCurrentRecords">--</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Weather (Last 1h):</strong></td>
+                                <td id="weatherRecent1h">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dead Tuples & Vacuum Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-broom"></i> Table Health & Dead Tuples</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm" id="deadTuplesTable">
+                            <thead>
+                                <tr>
+                                    <th>Table Name</th>
+                                    <th>Live Tuples</th>
+                                    <th>Dead Tuples</th>
+                                    <th>Dead %</th>
+                                    <th>Total Size</th>
+                                    <th>Last Vacuum</th>
+                                    <th>Last Autovacuum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Index Usage Statistics -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-list"></i> Index Usage Statistics</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm" id="indexStatsTable">
+                            <thead>
+                                <tr>
+                                    <th>Table Name</th>
+                                    <th>Index Name</th>
+                                    <th>Index Scans</th>
+                                    <th>Tuples Read</th>
+                                    <th>Tuples Fetched</th>
+                                    <th>Index Size</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Performance Stats -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-tachometer-alt"></i> Query Performance Metrics</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-success" id="dbCacheHitRatio">--</div>
+                                <div class="metric-label">Cache Hit Ratio</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-primary" id="dbCommits">--</div>
+                                <div class="metric-label">Total Commits</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-warning" id="dbRollbacks">--</div>
+                                <div class="metric-label">Total Rollbacks</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card bg-light">
+                                <div class="metric-value text-info" id="dbBlocksHit">--</div>
+                                <div class="metric-label">Blocks Hit (Cache)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container Health Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-cube"></i> Container Status</h4>
+                </div>
+                <div class="card-body">
+                    <div id="containerStatus">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-exclamation-triangle"></i> System Alerts</h4>
+                </div>
+                <div class="card-body">
+                    <div id="systemAlerts">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slow Queries Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-clock"></i> Recent Slow Queries</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="slowQueriesTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Duration (ms)</th>
+                                    <th>Query</th>
+                                    <th>Database</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center">
+                                        <div class="spinner-border" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js" onload="console.log('Chart.js loaded successfully')" onerror="console.error('Chart.js failed to load from CDN')"></script>
+<script>
+console.log('=== Performance Dashboard JavaScript Loaded ===');
+
+// Immediate test - make API call right away
+fetch('/api/performance/test', {
+    credentials: 'same-origin'
+})
+.then(response => {
+    console.log('Immediate test API response:', response.status);
+    return response.json();
+})
+.then(data => {
+    console.log('Immediate test API data:', data);
+})
+.catch(error => {
+    console.error('Immediate test API error:', error);
+});
+
+let systemChart, databaseChart;
+let refreshInterval;
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Performance dashboard initializing...');
+    console.log('Chart.js available:', typeof Chart !== 'undefined');
+    console.log('jQuery available:', typeof $ !== 'undefined');
+    
+    // Load current metrics immediately (bypass charts for now)
+    loadCurrentMetrics();
+    
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded! Skipping chart initialization.');
+    } else {
+        initializeCharts();
+        loadHistoricalData();
+    }
+    
+    // Always load the non-chart data
+    loadContainerStatus();
+    loadSystemAlerts();
+    loadSlowQueries();
+    loadDatabaseHealth();
+    
+    setupEventHandlers();
+    startAutoRefresh();
+    console.log('Performance dashboard initialized');
+});
+
+function initializeCharts() {
+    console.log('Initializing charts...');
+    try {
+        // System Performance Chart
+        const systemCtx = document.getElementById('systemChart').getContext('2d');
+        console.log('System chart canvas found:', systemCtx !== null);
+        
+        systemChart = new Chart(systemCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'CPU Usage (%)',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1
+                },
+                {
+                    label: 'Memory Usage (%)',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.1
+                },
+                {
+                    label: 'Disk Usage (%)',
+                    data: [],
+                    borderColor: 'rgb(255, 205, 86)',
+                    backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Database Performance Chart
+    const dbCtx = document.getElementById('databaseChart').getContext('2d');
+    databaseChart = new Chart(dbCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Active Connections',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Queries/Second',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+    
+    console.log('Charts initialized successfully');
+    } catch (error) {
+        console.error('Error initializing charts:', error);
+    }
+}
+
+function setupEventHandlers() {
+    document.getElementById('refreshBtn').addEventListener('click', loadAllData);
+    document.getElementById('timeRange').addEventListener('change', loadHistoricalData);
+    document.getElementById('autoRefresh').addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh(); // Clear any existing interval
+    refreshInterval = setInterval(loadAllData, 30000); // 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+function loadAllData() {
+    console.log('Loading all data...');
+    
+    // Test basic API connectivity first
+    fetch('/api/performance/test')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Test API response:', data);
+        })
+        .catch(error => {
+            console.error('Test API error:', error);
+        });
+    
+    loadCurrentMetrics();
+    loadHistoricalData();
+    loadContainerStatus();
+    loadSystemAlerts();
+    loadSlowQueries();
+    loadDatabaseHealth();
+    console.log('All data loading functions called');
+}
+
+function loadCurrentMetrics() {
+    console.log('Loading current metrics...');
+    
+    // Load current system metrics
+    fetch('/api/performance/system/current', {
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            console.log('System metrics response:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('System metrics data:', data);
+            if (data.success) {
+                const cpuElement = document.getElementById('currentCpu');
+                const memoryElement = document.getElementById('currentMemory');
+                const diskElement = document.getElementById('currentDisk');
+                const loadElement = document.getElementById('currentLoad');
+                
+                if (cpuElement) {
+                    cpuElement.textContent = data.data.cpu_percent + '%';
+                    cpuElement.style.color = 'green'; // Visual indicator that it updated
+                }
+                if (memoryElement) {
+                    memoryElement.textContent = data.data.memory_percent + '%';
+                    memoryElement.style.color = 'green';
+                }
+                if (diskElement) {
+                    diskElement.textContent = data.data.disk_percent + '%';
+                    diskElement.style.color = 'green';
+                }
+                if (loadElement) {
+                    loadElement.textContent = data.data.load_average_1m;
+                    loadElement.style.color = 'green';
+                }
+                console.log('System metrics updated successfully');
+            } else {
+                console.error('System metrics error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading current system metrics:', error);
+        });
+
+    // Load current database metrics
+    fetch('/api/performance/database/current', {
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            console.log('Database metrics response:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Database metrics data:', data);
+            if (data.success) {
+                document.getElementById('currentConnections').textContent = data.data.active_connections;
+                document.getElementById('currentQps').textContent = parseFloat(data.data.queries_per_second || 0).toFixed(1);
+                document.getElementById('currentAvgQuery').textContent = parseFloat(data.data.avg_query_time || 0).toFixed(2) + 'ms';
+                document.getElementById('currentDbSize').textContent = Math.round((data.data.database_size || 0) / 1024 / 1024) + 'MB';
+            } else {
+                console.error('Database metrics error:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading current database metrics:', error);
+        });
+}
+
+function loadHistoricalData() {
+    const hours = document.getElementById('timeRange').value;
+    
+    // Load system performance history
+    fetch(`/api/performance/system/history?hours=${hours}`, {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                const labels = data.data.map(item => {
+                    const date = new Date(item.timestamp);
+                    return date.toLocaleTimeString();
+                });
+                
+                systemChart.data.labels = labels;
+                systemChart.data.datasets[0].data = data.data.map(item => item.cpu_percent);
+                systemChart.data.datasets[1].data = data.data.map(item => item.memory_percent);
+                systemChart.data.datasets[2].data = data.data.map(item => item.disk_percent);
+                systemChart.update();
+            }
+        })
+        .catch(error => console.error('Error loading system history:', error));
+
+    // Load database performance history
+    fetch(`/api/performance/database/history?hours=${hours}`, {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data.length > 0) {
+                const labels = data.data.map(item => {
+                    const date = new Date(item.timestamp);
+                    return date.toLocaleTimeString();
+                });
+                
+                databaseChart.data.labels = labels;
+                databaseChart.data.datasets[0].data = data.data.map(item => item.active_connections);
+                databaseChart.data.datasets[1].data = data.data.map(item => item.queries_per_second);
+                databaseChart.update();
+            }
+        })
+        .catch(error => console.error('Error loading database history:', error));
+}
+
+function loadContainerStatus() {
+    fetch('/api/performance/containers/current', {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const containerHtml = data.data.map(container => {
+                    const statusClass = container.status === 'running' ? 'status-running' : 
+                                       container.status === 'exited' ? 'status-stopped' : 'status-paused';
+                    
+                    return `
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <span class="container-status ${statusClass}"></span>
+                                <strong>${container.name}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                CPU: ${(container.cpu_percent || 0).toFixed(1)}%
+                            </div>
+                            <div class="col-md-3">
+                                Memory: ${(container.memory_percent || 0).toFixed(1)}%
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('containerStatus').innerHTML = containerHtml;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading container status:', error);
+            document.getElementById('containerStatus').innerHTML = 
+                '<div class="alert alert-warning">Unable to load container status</div>';
+        });
+}
+
+function loadSystemAlerts() {
+    fetch('/api/performance/alerts', {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.data.length === 0) {
+                    document.getElementById('systemAlerts').innerHTML = 
+                        '<div class="alert alert-success">No active alerts</div>';
+                } else {
+                    const alertsHtml = data.data.map(alert => {
+                        const alertClass = alert.severity === 'critical' ? 'alert-danger' : 
+                                          alert.severity === 'warning' ? 'alert-warning' : 'alert-info';
+                        const time = new Date(alert.timestamp).toLocaleString();
+                        
+                        return `
+                            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                                <strong>${alert.alert_type}:</strong> ${alert.message}
+                                <br><small>${time}</small>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    document.getElementById('systemAlerts').innerHTML = alertsHtml;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading system alerts:', error);
+            document.getElementById('systemAlerts').innerHTML = 
+                '<div class="alert alert-warning">Unable to load alerts</div>';
+        });
+}
+
+function loadSlowQueries() {
+    fetch('/api/performance/slow-queries', {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const tbody = document.querySelector('#slowQueriesTable tbody');
+                if (data.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No slow queries found</td></tr>';
+                } else {
+                    const rowsHtml = data.data.map(query => {
+                        const time = new Date(query.timestamp).toLocaleString();
+                        const truncatedQuery = query.query.length > 100 ? 
+                                             query.query.substring(0, 100) + '...' : query.query;
+                        
+                        return `
+                            <tr>
+                                <td>${time}</td>
+                                <td>${query.duration_ms.toFixed(2)}</td>
+                                <td><code title="${query.query}">${truncatedQuery}</code></td>
+                                <td>${query.database_name}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    
+                    tbody.innerHTML = rowsHtml;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading slow queries:', error);
+            const tbody = document.querySelector('#slowQueriesTable tbody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-warning">Unable to load slow queries</td></tr>';
+        });
+}
+
+function loadDatabaseHealth() {
+    console.log('Loading database health...');
+    fetch('/api/performance/database/health', {
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            console.log('Database health response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Database health data received:', data);
+            if (data.success) {
+                console.log('Database health data:', data);
+                
+                // Update crypto metrics
+                const crypto_prices = data.data.crypto_prices;
+                const crypto_indicators = data.data.crypto_indicators;
+                document.getElementById('cryptoTotal').textContent = crypto_prices.total_cryptos || '--';
+                document.getElementById('cryptoPriceRecords').textContent = (crypto_prices.total_price_records || 0).toLocaleString();
+                document.getElementById('cryptoLatestPrice').textContent = crypto_prices.latest_data ? 
+                    new Date(crypto_prices.latest_data).toLocaleString() : '--';
+                document.getElementById('cryptoRecent24h').textContent = (crypto_prices.recent_records_24h || 0).toLocaleString();
+                document.getElementById('cryptoIndicatorCryptos').textContent = crypto_indicators.cryptos_with_indicators || '--';
+                document.getElementById('cryptoIndicatorRecords').textContent = (crypto_indicators.total_indicator_records || 0).toLocaleString();
+                document.getElementById('cryptoIndicators24h').textContent = (crypto_indicators.recent_indicators_24h || 0).toLocaleString();
+                
+                // Update stock metrics
+                const stock_stats = data.data.stock_stats;
+                document.getElementById('stockTotal').textContent = stock_stats.total_stocks || '--';
+                document.getElementById('stockPriceRecords').textContent = (stock_stats.total_price_records || 0).toLocaleString();
+                document.getElementById('stockLatestData').textContent = stock_stats.latest_data ? 
+                    new Date(stock_stats.latest_data).toLocaleString() : '--';
+                
+                // Update weather metrics
+                const weather_historic = data.data.weather_historic;
+                const weather_current = data.data.weather_current;
+                document.getElementById('weatherHistoricRecords').textContent = (weather_historic.total_historic_records || 0).toLocaleString();
+                document.getElementById('weatherLocations').textContent = weather_historic.locations || '--';
+                document.getElementById('weatherCurrentRecords').textContent = (weather_current.total_current_records || 0).toLocaleString();
+                document.getElementById('weatherRecent1h').textContent = (weather_current.recent_records_1h || 0).toLocaleString();
+                
+                // Update query performance stats
+                const query_stats = data.data.query_stats;
+                document.getElementById('dbCacheHitRatio').textContent = query_stats.cache_hit_ratio ? 
+                    query_stats.cache_hit_ratio + '%' : '--';
+                document.getElementById('dbCommits').textContent = (query_stats.commits || 0).toLocaleString();
+                document.getElementById('dbRollbacks').textContent = (query_stats.rollbacks || 0).toLocaleString();
+                document.getElementById('dbBlocksHit').textContent = (query_stats.blocks_hit || 0).toLocaleString();
+                
+                // Update dead tuples table
+                const deadTuplesTable = document.querySelector('#deadTuplesTable tbody');
+                if (data.data.table_stats && data.data.table_stats.length > 0) {
+                    const rowsHtml = data.data.table_stats.map(table => {
+                        const deadRatio = table.dead_tuple_ratio || 0;
+                        const ratioClass = deadRatio > 10 ? 'text-danger' : deadRatio > 5 ? 'text-warning' : 'text-success';
+                        return `
+                            <tr>
+                                <td><strong>${table.table_name}</strong></td>
+                                <td>${(table.live_tuples || 0).toLocaleString()}</td>
+                                <td>${(table.dead_tuples || 0).toLocaleString()}</td>
+                                <td class="${ratioClass}">${deadRatio.toFixed(2)}%</td>
+                                <td>${table.total_size || '--'}</td>
+                                <td>${table.last_vacuum ? new Date(table.last_vacuum).toLocaleString() : 'Never'}</td>
+                                <td>${table.last_autovacuum ? new Date(table.last_autovacuum).toLocaleString() : 'Never'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    deadTuplesTable.innerHTML = rowsHtml;
+                } else {
+                    deadTuplesTable.innerHTML = '<tr><td colspan="7" class="text-center">No data</td></tr>';
+                }
+                
+                // Update index usage table
+                const indexStatsTable = document.querySelector('#indexStatsTable tbody');
+                if (data.data.index_stats && data.data.index_stats.length > 0) {
+                    const rowsHtml = data.data.index_stats.map(idx => {
+                        const scans = idx.index_scans || 0;
+                        const scanClass = scans === 0 ? 'text-warning' : scans < 100 ? 'text-info' : 'text-success';
+                        return `
+                            <tr>
+                                <td>${idx.tablename}</td>
+                                <td><code>${idx.indexname}</code></td>
+                                <td class="${scanClass}">${scans.toLocaleString()}</td>
+                                <td>${(idx.tuples_read || 0).toLocaleString()}</td>
+                                <td>${(idx.tuples_fetched || 0).toLocaleString()}</td>
+                                <td>${idx.index_size || '--'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    indexStatsTable.innerHTML = rowsHtml;
+                } else {
+                    indexStatsTable.innerHTML = '<tr><td colspan="6" class="text-center">No data</td></tr>';
+                }
+            } else {
+                console.error('Database health API returned success=false:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading database health:', error);
+            console.error('Error details:', error.message, error.stack);
+        });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}

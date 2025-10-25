@@ -1,0 +1,24 @@
+      schemaname       |       tablename       |  size   |  rows  
+-----------------------+-----------------------+---------+--------
+ public                | stock_prices          | 128 MB  | 748233
+ public                | historic_weather_data | 28 MB   | 123525
+ public                | stock_fetch_logs      | 18 MB   | 162310
+ public                | user_activity_logs    | 11 MB   |  28140
+ _timescaledb_internal | _hyper_7_2179_chunk   | 4384 kB |   5376
+ _timescaledb_internal | _hyper_7_2185_chunk   | 4384 kB |   5376
+ _timescaledb_internal | _hyper_7_2186_chunk   | 4384 kB |   5376
+ _timescaledb_internal | _hyper_7_2191_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2184_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2189_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2190_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2183_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2178_chunk   | 4376 kB |   5344
+ _timescaledb_internal | _hyper_7_2192_chunk   | 4376 kB |   5376
+ _timescaledb_internal | _hyper_7_2174_chunk   | 4368 kB |   5376
+ _timescaledb_internal | _hyper_7_2180_chunk   | 4368 kB |   5376
+ _timescaledb_internal | _hyper_7_2187_chunk   | 4368 kB |   5312
+ _timescaledb_internal | _hyper_7_2193_chunk   | 4368 kB |   5376
+ _timescaledb_internal | _hyper_7_2198_chunk   | 4360 kB |   5376
+ _timescaledb_internal | _hyper_7_2173_chunk   | 4360 kB |   5376
+(20 rows)
+

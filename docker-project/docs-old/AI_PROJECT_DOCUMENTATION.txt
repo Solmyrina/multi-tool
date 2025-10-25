@@ -1,0 +1,637 @@
+# PROJECT ARCHITECTURE & DEVELOPMENT DOCUMENTATION
+# ====================================================
+# Created: $(date +"%Y-%m-%d %H:%M:%S")
+# 
+# This document provides comprehensive understanding of the multi-service financial data platform
+# for AI systems to understand project structure and guide future development.
+#
+# QUICK REFERENCE FOR AI SYSTEMS:
+# - This is a 5-container Docker application (database, webapp, api, pgadmin, nginx)
+# - PostgreSQL database with comprehensive schema for users, stocks, weather, crypto
+# - Flask webapp (4655 lines) handling authentication and web interface
+# - Flask API (951 lines) providing REST endpoints for all data services
+# - Weather, stock, and cryptocurrency data collection with automated scheduling
+# - User authentication system with role-based permissions
+# - Performance monitoring and security features
+# ====================================================
+
+## PROJECT OVERVIEW
+This is a comprehensive financial and weather data platform built with Docker microservices architecture.
+The system collects, stores, and analyzes multiple data streams:
+- Weather data (historic 10+ years, current hourly updates)  
+- Stock market data (NASDAQ, NYSE, 20+ years historical data)
+- Cryptocurrency data (Binance API, top 200 coins, 5+ years data)
+- User management with role-based access control
+- Performance monitoring and security features
+
+## DOCKER ARCHITECTURE (docker-compose.yml)
+
+### Service Overview:
+1. **database** (PostgreSQL 15)
+   - Purpose: Primary data storage for all services
+   - Port: 5432 (internal), not exposed externally
+   - Data: Users, authentication, weather, stocks, crypto, logs
+   - Health checks: pg_isready monitoring
+   - Volumes: postgres_data, database/init.sql initialization
+
+2. **webapp** (Flask application)
+   - Purpose: Main web interface and user authentication
+   - Port: 5001 (internal), accessed via nginx
+   - Features: Login/registration, dashboards, admin panels
+   - Dependencies: Requires database health check
+   - File: webapp/app.py (4655 lines)
+
+3. **api** (Flask-RESTful service)
+   - Purpose: Data collection and REST API endpoints
+   - Port: 8000 (internal), accessed via nginx
+   - Features: Stock/crypto/weather data APIs, automated collection
+   - Dependencies: Requires database health check
+   - File: api/api.py (951 lines)
+
+4. **pgadmin** (Database administration)
+   - Purpose: Database management interface
+   - Port: 5050 (internal), accessed via nginx
+   - Access: admin@admin.com / root (auto-login configured)
+   - Configuration: pgadmin/servers.json
+
+5. **nginx** (Reverse proxy with SSL)
+   - Purpose: SSL termination and service routing
+   - Port: 443 (HTTPS), 80 (HTTP redirect)
+   - SSL: Self-signed certificates in ssl/
+   - Config: nginx/nginx.conf
+
+### Network Architecture:
+- All services on shared Docker network: app-network
+- External access only through nginx (HTTPS)
+- Internal service communication via service names
+- Database and API ports not externally exposed
+
+## DATABASE SCHEMA (database/init.sql)
+
+### Core Tables Structure:
+
+#### User Management:
+- **users**: User accounts with authentication
+- **user_levels**: Role-based permission system
+- **user_activity_logs**: Activity tracking and security monitoring
+- **security_settings**: Per-user security configuration
+
+#### Weather System:
+- **weather_locations**: Geographic locations for weather data
+- **current_weather**: Hourly weather updates from yr.no API
+- **historic_weather**: 10+ years of daily historical weather data
+- **weather_data_sources**: API source tracking and rate limiting
+
+#### Stock Market System:
+- **stocks**: Stock symbols and company information
+- **stock_prices**: Historical price data (OHLCV) with multiple intervals
+- **stock_data_sources**: Data source management (Yahoo Finance, Alpha Vantage)
+- **stock_fetch_logs**: Data collection monitoring and error tracking
+
+#### Cryptocurrency System:
+- **cryptocurrencies**: Cryptocurrency metadata and symbols
+- **crypto_prices**: Historical price data from Binance API
+- **crypto_data_sources**: API source configuration and rate limiting
+- **crypto_fetch_logs**: Collection monitoring and performance tracking
+- **crypto_market_stats**: Market statistics and rankings
+
+#### Performance & Monitoring:
+- **performance_metrics**: System performance tracking
+- **system_logs**: Application-wide logging and error tracking
+
+### Key Features:
+- Comprehensive indexing for performance optimization
+- Foreign key constraints ensuring data integrity
+- Timestamp tracking for all data points
+- Rate limiting and API management built into schema
+- Support for multiple data intervals (1m, 1h, 1d, 1w, 1M)
+
+## WEBAPP APPLICATION (webapp/app.py - 4655 lines)
+
+### Core Architecture:
+- **Flask framework** with Blueprint organization
+- **Flask-Login** for user session management
+- **PostgreSQL** integration with psycopg2
+- **Role-based access control** with permission decorators
+- **Comprehensive logging** for security and debugging
+
+### Key Route Categories:
+
+#### Authentication Routes:
+- `/login` - User authentication with session management
+- `/register` - New user registration with validation
+- `/logout` - Session cleanup and security logging
+- `/change-password` - Password update with security checks
+
+#### Dashboard Routes:
+- `/` - Main dashboard with user-specific content
+- `/dashboard` - Comprehensive system overview
+- `/performance` - System performance monitoring
+- `/security` - Security dashboard and audit logs
+
+#### Data Management Routes:
+- `/stocks/*` - Stock market data views and controls
+- `/weather/*` - Weather data visualization and management
+- `/crypto/*` - Cryptocurrency data and analytics
+
+#### Admin Routes:
+- `/admin/*` - User management and system administration
+- `/containers` - Docker container monitoring
+- `/database` - Database administration interface
+
+### Security Features:
+- **Session management**: Secure cookie configuration
+- **CSRF protection**: Form validation and security headers
+- **Activity logging**: All user actions tracked
+- **Permission system**: Granular access control
+- **Rate limiting**: Login attempt monitoring
+
+### API Integration:
+- **Internal API calls**: Communication with API service
+- **Error handling**: Graceful degradation and user feedback
+- **Data caching**: Performance optimization for frequent requests
+
+## API SERVICE (api/api.py - 951 lines)
+
+### Service Architecture:
+- **Flask-RESTful** framework for clean API design
+- **Multiple data services**: Modular service classes
+- **Automated scheduling**: Background data collection
+- **Rate limiting**: API quota management
+
+### Core Services:
+
+#### Stock Data Service (stock_service.py):
+```python
+class StockDataService:
+    # Features:
+    - Multi-source data fetching (Yahoo Finance, Alpha Vantage)
+    - 20 years historical data collection
+    - Multiple intervals (1d, 1h, 1w, 1M)
+    - Real-time updates and scheduling
+    - Error handling and retry logic
+    
+    # Key Methods:
+    - fetch_and_store_stock_data()
+    - get_latest_stock_prices()
+    - fetch_historical_data()
+    - get_stock_data_count()
+```
+
+#### Cryptocurrency Service (crypto_service.py):
+```python
+class CryptoDataService:
+    # Features:
+    - Binance API integration (public + authenticated)
+    - Top 200 cryptocurrencies by volume
+    - 5 years of hourly OHLCV data
+    - Rate limiting (1200/min public, 6000/min with API key)
+    - Automatic retry and error handling
+    
+    # Key Methods:
+    - get_top_cryptocurrencies()
+    - get_historical_klines()
+    - store_historical_data()
+    - get_configuration_info()
+```
+
+#### Weather Data Service:
+```python
+# Historic Weather Collection:
+- 10+ years of daily weather data
+- Multiple Finnish cities (Helsinki, Tampere, Turku, etc.)
+- FMI (Finnish Meteorological Institute) data
+- Automated collection with progress tracking
+
+# Current Weather Service:
+- yr.no API integration (Norwegian weather service)
+- Hourly updates for monitored locations
+- Real-time weather data collection
+- Error handling and service monitoring
+```
+
+### API Endpoints Overview:
+
+#### Stock Market Endpoints:
+- `GET /stocks/prices` - Historical price data
+- `GET /stocks/latest` - Current market prices
+- `GET /stocks/stats` - Data statistics and coverage
+- `POST /stocks/fetch` - Trigger data collection
+- `GET /stocks/investment-calculator` - ROI calculations
+
+#### Cryptocurrency Endpoints:
+- `GET /crypto/list` - Available cryptocurrencies
+- `GET /crypto/prices` - Historical price data
+- `GET /crypto/latest` - Current market data
+- `GET /crypto/market-overview` - Market statistics
+- `GET /crypto/configuration` - Service configuration
+- `POST /crypto/collect-data` - Trigger data collection
+
+#### Weather Endpoints:
+- `GET /weather/current` - Current weather data
+- `GET /weather/historic` - Historical weather data
+- `GET /weather/locations` - Available locations
+- `POST /weather/trigger-historic-collection` - Batch data collection
+
+#### System Endpoints:
+- `GET /health` - Service health check
+- `GET /stats/users` - User statistics
+- `GET /info/database` - Database information
+
+## DATA COLLECTION SYSTEMS
+
+### Weather Data Collection:
+
+#### Historic Weather System:
+```bash
+# Files: api/collect_historic_weather.py, api/fetch_historic_weather.py
+# Purpose: Collect 10+ years of daily weather data
+# Source: FMI (Finnish Meteorological Institute)
+# Coverage: Multiple Finnish cities
+# Data: Temperature, precipitation, wind, humidity
+# Status: 18,255+ records collected
+# Automation: setup_weather_automation.sh
+```
+
+#### Current Weather System:
+```bash
+# Files: api/collect_current_weather.py
+# Purpose: Hourly weather updates
+# Source: yr.no API (Norwegian Meteorological Institute)
+# Frequency: Every hour via cron
+# Data: Real-time weather conditions
+# Logging: current_weather.log
+```
+
+### Stock Market Data Collection:
+
+#### Data Sources:
+1. **Yahoo Finance API** (Primary)
+   - 20 years of historical data
+   - Multiple intervals (1d, 1h, 1w, 1M)
+   - Global stock markets support
+   - Rate limiting: Conservative approach
+
+2. **Alpha Vantage API** (Backup)
+   - API key required for enhanced limits
+   - Configuration in .env file
+   - Fallback for Yahoo Finance failures
+
+#### Collection Scripts:
+```bash
+# api/add_popular_nasdaq_stocks.py - Top 50 NASDAQ stocks
+# api/add_nasdaq_200_complete.py - Top 200 NASDAQ companies
+# api/add_top_nasdaq_stocks.py - Complete NASDAQ collection
+# api/fetch_real_nasdaq_data.py - NASDAQ Composite Index
+```
+
+#### Automation Features:
+- **Scheduled updates**: Daily market data refresh
+- **Error handling**: Robust retry logic
+- **Progress tracking**: Resume interrupted collections
+- **Data validation**: Ensure data quality
+
+### Cryptocurrency Data Collection:
+
+#### Binance API Integration:
+```bash
+# Primary Service: crypto_service.py
+# Data Source: Binance REST API
+# Coverage: Top 200 cryptocurrencies by volume
+# Historical: 5 years of hourly OHLCV data
+# Rate Limits: 
+#   - Public API: 1200 requests/minute
+#   - With API key: 6000 requests/minute (5x faster)
+```
+
+#### Collection Process:
+```bash
+# Main Collection: api/collect_crypto_data.py
+# Features:
+#   - Progress tracking and resume capability
+#   - Rate limiting and error handling
+#   - Automatic retry logic
+#   - Status monitoring and logging
+
+# Update Process: crypto_data.py update
+# Features:
+#   - Daily market data refresh
+#   - Latest price updates
+#   - Market statistics updates
+```
+
+#### Performance Optimization:
+- **API Key Support**: 5x faster collection with Binance API key
+- **Rate Limiting**: Intelligent request spacing
+- **Batch Processing**: Efficient bulk data insertion
+- **Error Recovery**: Automatic retry with exponential backoff
+
+## DEVELOPMENT GUIDELINES
+
+### Adding New Data Sources:
+
+#### Step 1: Database Schema
+```sql
+-- Create new data tables in database/
+-- Example: add_new_data_source_tables.sql
+CREATE TABLE new_data_source (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    api_endpoint VARCHAR(255),
+    last_fetch TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active'
+);
+
+-- Add indexes for performance
+CREATE INDEX idx_new_data_source_status ON new_data_source(status);
+```
+
+#### Step 2: Service Implementation
+```python
+# Create new service file: api/new_data_service.py
+class NewDataService:
+    def __init__(self, db_config=None):
+        self.db_config = db_config
+        
+    def fetch_data(self):
+        # Implement data fetching logic
+        pass
+        
+    def store_data(self, data):
+        # Implement data storage logic
+        pass
+```
+
+#### Step 3: API Endpoints
+```python
+# Add to api/api.py
+class NewDataEndpoint(Resource):
+    def get(self):
+        # Implement GET endpoint
+        return {'data': 'example'}
+        
+# Register endpoint
+api.add_resource(NewDataEndpoint, '/new-data/endpoint')
+```
+
+#### Step 4: Web Interface
+```python
+# Add routes to webapp/app.py
+@app.route('/new-data')
+@login_required
+def new_data_dashboard():
+    return render_template('new_data.html')
+```
+
+### Database Migration Process:
+
+#### Adding New Tables:
+1. Create SQL file in `database/` directory
+2. Add table creation with proper constraints
+3. Include indexes for performance
+4. Test migration with sample data
+
+#### Modifying Existing Tables:
+1. Create migration SQL file
+2. Use `ALTER TABLE` statements
+3. Backup critical data before changes
+4. Test thoroughly in development
+
+### API Development Standards:
+
+#### Error Handling:
+```python
+try:
+    # API logic here
+    return {'success': True, 'data': result}
+except Exception as e:
+    logger.error(f"API error: {e}")
+    return {'error': str(e)}, 500
+```
+
+#### Rate Limiting:
+```python
+def _rate_limit_check(self):
+    """Implement rate limiting logic"""
+    current_time = time.time()
+    if current_time - self.last_request_time < self.min_delay:
+        time.sleep(self.min_delay)
+    self.last_request_time = current_time
+```
+
+#### Data Validation:
+```python
+def validate_input(self, data):
+    """Validate API input data"""
+    required_fields = ['symbol', 'date']
+    for field in required_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+```
+
+## DEPLOYMENT & MAINTENANCE
+
+### Environment Configuration:
+
+#### Required Files:
+```bash
+# .env file (copy from .env.template)
+BINANCE_API_KEY=your_binance_api_key_here
+BINANCE_SECRET_KEY=your_binance_secret_key_here
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key_here
+DB_PASSWORD=530NWC0Gm3pt4O
+```
+
+#### SSL Certificates:
+```bash
+# Generate SSL certificates
+./generate-ssl.sh
+
+# Files created:
+# ssl/server.crt
+# ssl/server.key
+```
+
+### Container Management:
+
+#### Starting Services:
+```bash
+# Start all services
+docker compose up -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f [service_name]
+```
+
+#### Updating Services:
+```bash
+# Rebuild and restart
+docker compose down
+docker compose up -d --build
+
+# Update specific service
+docker compose up -d --build webapp
+```
+
+### Data Backup & Recovery:
+
+#### Database Backup:
+```bash
+# Create backup
+docker exec docker-project_database_1 pg_dump -U root webapp_db > backup.sql
+
+# Restore backup
+docker exec -i docker-project_database_1 psql -U root webapp_db < backup.sql
+```
+
+#### Data Volume Backup:
+```bash
+# Backup PostgreSQL data volume
+docker run --rm -v docker-project_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz -C /data .
+```
+
+### Performance Monitoring:
+
+#### System Metrics:
+- Database connection monitoring
+- API response times
+- Data collection success rates
+- Container resource usage
+
+#### Application Logs:
+- User activity logs in database
+- API access logs
+- Data collection logs
+- Error tracking and alerting
+
+### Security Considerations:
+
+#### Database Security:
+- Strong passwords for all accounts
+- Network isolation (database not externally accessible)
+- Regular security updates
+- Activity monitoring and logging
+
+#### API Security:
+- Rate limiting on all endpoints
+- Input validation and sanitization
+- Secure headers and CORS configuration
+- API key management for external services
+
+#### Web Application Security:
+- Session management with secure cookies
+- CSRF protection on all forms
+- User input validation
+- SQL injection prevention
+
+## TROUBLESHOOTING GUIDE
+
+### Common Issues:
+
+#### Database Connection Issues:
+```bash
+# Check database container
+docker compose logs database
+
+# Test connection
+docker exec -it docker-project_database_1 psql -U root webapp_db
+
+# Reset database
+docker compose down
+docker volume rm docker-project_postgres_data
+docker compose up -d
+```
+
+#### API Service Issues:
+```bash
+# Check API logs
+docker compose logs api
+
+# Test API endpoints
+curl https://localhost/api/health
+
+# Restart API service
+docker compose restart api
+```
+
+#### Data Collection Issues:
+```bash
+# Check collection logs
+docker exec -it docker-project_api_1 tail -f /tmp/crypto_collection.log
+
+# Manual data collection
+docker exec -it docker-project_api_1 python collect_crypto_data.py
+
+# Check API keys configuration
+docker exec -it docker-project_api_1 env | grep BINANCE
+```
+
+### Performance Optimization:
+
+#### Database Performance:
+- Monitor slow queries with pg_stat_statements
+- Optimize indexes for frequent queries
+- Regular VACUUM and ANALYZE operations
+- Connection pooling for high load
+
+#### API Performance:
+- Implement caching for frequent requests
+- Optimize database queries
+- Use background tasks for heavy operations
+- Monitor rate limiting effectiveness
+
+#### Data Collection Performance:
+- Use API keys for higher rate limits
+- Implement parallel processing where possible
+- Optimize batch sizes for database operations
+- Monitor and adjust sleep intervals
+
+## FUTURE DEVELOPMENT ROADMAP
+
+### Planned Features:
+1. **Real-time Data Streaming**: WebSocket integration for live data
+2. **Advanced Analytics**: Machine learning models for predictions
+3. **Mobile API**: REST API optimization for mobile applications
+4. **Data Export**: CSV/JSON export functionality
+5. **Enhanced Visualization**: Interactive charts and graphs
+
+### Infrastructure Improvements:
+1. **Load Balancing**: Multiple API instances
+2. **Caching Layer**: Redis integration
+3. **Message Queue**: Async task processing
+4. **Monitoring**: Prometheus/Grafana integration
+5. **CI/CD Pipeline**: Automated testing and deployment
+
+### Security Enhancements:
+1. **OAuth Integration**: Third-party authentication
+2. **API Versioning**: Backward compatibility
+3. **Audit System**: Enhanced logging and monitoring
+4. **Encryption**: Data encryption at rest
+5. **Compliance**: GDPR and financial regulations
+
+## CONCLUSION
+
+This financial data platform provides a robust foundation for collecting, storing, and analyzing multiple data streams. The modular architecture allows for easy extension and maintenance, while the comprehensive documentation ensures smooth development and operations.
+
+Key strengths:
+- **Scalable Architecture**: Docker microservices with clear separation
+- **Comprehensive Data Coverage**: Weather, stocks, and cryptocurrencies
+- **Robust Error Handling**: Graceful degradation and recovery
+- **Security Focus**: Authentication, authorization, and monitoring
+- **Performance Optimization**: Indexes, caching, and rate limiting
+
+For AI systems working with this project:
+1. Always check this documentation for system understanding
+2. Follow established patterns for new features
+3. Maintain comprehensive logging and error handling
+4. Test changes thoroughly in development
+5. Update documentation for any architectural changes
+
+The system is designed for continuous improvement and can adapt to changing requirements while maintaining stability and performance.
+
+---
+Last Updated: $(date +"%Y-%m-%d %H:%M:%S")
+Documentation Version: 1.0

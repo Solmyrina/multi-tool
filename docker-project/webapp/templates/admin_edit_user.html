@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - Docker Web App{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Edit User: {{ user_data.username }}</h1>
+    <a href="{{ url_for('admin_users') }}" class="btn" style="margin-bottom: 1rem;">← Back to User Management</a>
+</div>
+
+<div class="card">
+    <h2>User Information</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+        <div>
+            <p><strong>Username:</strong> {{ user_data.username }}</p>
+            <p><strong>Email:</strong> {{ user_data.email }}</p>
+            <p><strong>User ID:</strong> {{ user_data.id }}</p>
+        </div>
+        <div>
+            <p><strong>Created:</strong> {{ user_data.created_at.strftime('%Y-%m-%d %H:%M') if user_data.created_at else 'N/A' }}</p>
+            <p><strong>Last Login:</strong> {{ user_data.last_login.strftime('%Y-%m-%d %H:%M') if user_data.last_login else 'Never' }}</p>
+            <p><strong>Current Level:</strong> 
+                <span style="
+                    padding: 0.25rem 0.5rem; 
+                    border-radius: 4px; 
+                    font-size: 0.8em; 
+                    background: {% if user_data.level_code == 'super_admin' %}#e74c3c{% elif user_data.level_code == 'admin' %}#f39c12{% elif user_data.level_code == 'moderator' %}#9b59b6{% else %}#95a5a6{% endif %}; 
+                    color: white;
+                ">
+                    {{ user_data.level_name }}
+                </span>
+            </p>
+        </div>
+    </div>
+    
+    {% if user_data.level_code == 'super_admin' and not current_user.is_super_admin() %}
+        <div class="alert alert-error">
+            <strong>Note:</strong> Only super administrators can modify super admin accounts.
+        </div>
+    {% else %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="user_level_id">User Level</label>
+                <select id="user_level_id" name="user_level_id" required>
+                    {% for level in user_levels %}
+                        {% if level.level_code != 'super_admin' or current_user.is_super_admin() %}
+                            <option value="{{ level.id }}" 
+                                    {% if level.id == user_data.user_level_id %}selected{% endif %}>
+                                {{ level.level_name }} ({{ level.level_code }})
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <small style="color: #666;">
+                    {% if not current_user.is_super_admin() %}
+                        Note: Super Admin level is only available to current super administrators.
+                    {% endif %}
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_active" {% if user_data.is_active %}checked{% endif %}>
+                    Account Active
+                </label>
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Unchecking this will prevent the user from logging in.
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn">Update User</button>
+                <a href="{{ url_for('admin_users') }}" class="btn" style="background: #95a5a6; margin-left: 1rem;">Cancel</a>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>User Level Permissions</h2>
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Level</th>
+                    <th>Permissions</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for level in user_levels %}
+                <tr{% if level.id == user_data.user_level_id %} style="background: #f0f8ff;"{% endif %}>
+                    <td>
+                        <span style="
+                            padding: 0.25rem 0.5rem; 
+                            border-radius: 4px; 
+                            font-size: 0.8em; 
+                            background: {% if level.level_code == 'super_admin' %}#e74c3c{% elif level.level_code == 'admin' %}#f39c12{% elif level.level_code == 'moderator' %}#9b59b6{% else %}#95a5a6{% endif %}; 
+                            color: white;
+                        ">
+                            {{ level.level_name }}
+                            {% if level.id == user_data.user_level_id %} (Current){% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if level.permissions %}
+                            {% for permission in level.permissions %}
+                                <span style="background: #e9ecef; padding: 0.125rem 0.25rem; border-radius: 2px; font-size: 0.75em; margin-right: 0.25rem;">
+                                    {{ permission }}
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <em>No permissions</em>
+                        {% endif %}
+                    </td>
+                    <td>{{ level.description or 'No description' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if user_data.id != current_user.id %}
+<div class="card">
+    <h2>Password Reset</h2>
+    <p style="margin-bottom: 1rem;">
+        Reset the user's password. The user will need to use the new password to log in.
+    </p>
+    
+    {% if user_data.level_code == 'super_admin' and not current_user.is_super_admin() %}
+        <div class="alert alert-error">
+            <strong>Note:</strong> Only super administrators can reset super admin passwords.
+        </div>
+    {% else %}
+        <form method="POST" action="{{ url_for('admin_reset_password', user_id=user_data.id) }}">
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" id="new_password" name="new_password" required minlength="6">
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn" style="background: #f39c12;">Reset Password</button>
+            </div>
+        </form>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if user_data.id != current_user.id %}
+<div class="card">
+    <h2>Danger Zone</h2>
+    <p style="color: #e74c3c; margin-bottom: 1rem;">
+        <strong>Warning:</strong> Deactivating a user will prevent them from logging in. This action can be reversed by reactivating the account.
+    </p>
+    <form method="POST" action="{{ url_for('admin_delete_user', user_id=user_data.id) }}" 
+          onsubmit="return confirm('Are you sure you want to deactivate this user? This will prevent them from logging in.')">
+        <button type="submit" class="btn btn-danger">Deactivate User Account</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

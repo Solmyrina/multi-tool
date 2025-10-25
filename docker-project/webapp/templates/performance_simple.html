@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Monitoring{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1>Performance Monitoring Dashboard</h1>
+    
+    <div class="alert alert-success">
+        <h4>✅ Performance Dashboard Template Working</h4>
+        <p>Template loaded successfully. Initializing performance monitoring...</p>
+    </div>
+    
+    <!-- Current Metrics Display -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">CPU Usage</h5>
+                    <div id="currentCpu" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Memory Usage</h5>
+                    <div id="currentMemory" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Disk Usage</h5>
+                    <div id="currentDisk" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Load Average</h5>
+                    <div id="currentLoad" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <br>
+    
+    <!-- Database Metrics -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">DB Connections</h5>
+                    <div id="currentConnections" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Cache Hit Ratio</h5>
+                    <div id="currentCacheHit" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">DB Size</h5>
+                    <div id="currentDbSize" style="font-size: 2em; font-weight: bold; color: #666;">Loading...</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Auto Refresh</h5>
+                    <button id="refreshBtn" class="btn btn-primary">Refresh Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <br>
+    
+    <!-- Charts Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>System Performance Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="systemChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Database Performance Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="databaseChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <br>
+    
+    <!-- Status Messages -->
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h4>📊 Performance Data Status</h4>
+                <div id="statusMessages">Initializing...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+console.log('=== SIMPLE PERFORMANCE DASHBOARD ===');
+
+let refreshInterval;
+let systemChart, databaseChart;
+
+// Initialize charts
+function initializeCharts() {
+    console.log('Initializing charts...');
+    
+    try {
+        // System Performance Chart
+        const systemCtx = document.getElementById('systemChart').getContext('2d');
+        systemChart = new Chart(systemCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'CPU Usage (%)',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Memory Usage (%)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Database Performance Chart
+        const dbCtx = document.getElementById('databaseChart').getContext('2d');
+        databaseChart = new Chart(dbCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Active Connections',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Cache Hit Ratio (%)',
+                        data: [],
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        console.log('Charts initialized successfully');
+    } catch (error) {
+        console.error('Error initializing charts:', error);
+    }
+}
+
+// Load historical data for charts
+function loadHistoricalData() {
+    console.log('Loading historical data...');
+    
+    // Load system performance history (last 24 hours)
+    fetch('/api/performance/system/history?hours=24', {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('System history data:', data);
+        if (data.success && data.data.length > 0) {
+            const labels = data.data.map(item => {
+                const date = new Date(item.timestamp);
+                return date.toLocaleTimeString();
+            });
+            
+            systemChart.data.labels = labels;
+            systemChart.data.datasets[0].data = data.data.map(item => parseFloat(item.cpu_percent));
+            systemChart.data.datasets[1].data = data.data.map(item => parseFloat(item.memory_percent));
+            systemChart.update();
+            
+            console.log('System chart updated with', data.data.length, 'data points');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading system history:', error);
+    });
+    
+    // Load database performance history
+    fetch('/api/performance/database/history?hours=24', {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Database history data:', data);
+        if (data.success && data.data.length > 0) {
+            const labels = data.data.map(item => {
+                const date = new Date(item.timestamp);
+                return date.toLocaleTimeString();
+            });
+            
+            databaseChart.data.labels = labels;
+            databaseChart.data.datasets[0].data = data.data.map(item => item.active_connections);
+            databaseChart.data.datasets[1].data = data.data.map(item => parseFloat(item.cache_hit_ratio || 0));
+            databaseChart.update();
+            
+            console.log('Database chart updated with', data.data.length, 'data points');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading database history:', error);
+    });
+}
+
+// Simple function to load current metrics
+function loadCurrentMetrics() {
+    console.log('Loading current metrics...');
+    
+    const statusDiv = document.getElementById('statusMessages');
+    statusDiv.innerHTML = 'Loading system metrics...';
+    
+    // Load system metrics
+    fetch('/api/performance/system/current', {
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('System metrics response:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('System metrics data:', data);
+        if (data.success) {
+            document.getElementById('currentCpu').textContent = data.data.cpu_percent + '%';
+            document.getElementById('currentCpu').style.color = 'green';
+            
+            document.getElementById('currentMemory').textContent = data.data.memory_percent + '%';
+            document.getElementById('currentMemory').style.color = 'green';
+            
+            document.getElementById('currentDisk').textContent = data.data.disk_percent + '%';
+            document.getElementById('currentDisk').style.color = 'green';
+            
+            document.getElementById('currentLoad').textContent = data.data.load_average_1m;
+            document.getElementById('currentLoad').style.color = 'green';
+            
+            statusDiv.innerHTML = '✅ System metrics loaded successfully<br>';
+            
+            // Load database metrics
+            return fetch('/api/performance/database/current', {
+                credentials: 'same-origin'
+            });
+        } else {
+            throw new Error('System API returned success=false');
+        }
+    })
+    .then(response => {
+        console.log('Database metrics response:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Database metrics data:', data);
+        if (data.success) {
+            document.getElementById('currentConnections').textContent = data.data.active_connections;
+            document.getElementById('currentConnections').style.color = 'blue';
+            
+            document.getElementById('currentCacheHit').textContent = Math.round(data.data.cache_hit_ratio) + '%';
+            document.getElementById('currentCacheHit').style.color = 'blue';
+            
+            document.getElementById('currentDbSize').textContent = Math.round(data.data.database_size / 1024 / 1024) + ' MB';
+            document.getElementById('currentDbSize').style.color = 'blue';
+            
+            statusDiv.innerHTML += '✅ Database metrics loaded successfully<br>';
+            statusDiv.innerHTML += '<strong>🎉 Performance monitoring is working!</strong>';
+            statusDiv.style.color = 'green';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading metrics:', error);
+        statusDiv.innerHTML = '❌ Error loading metrics: ' + error.message;
+        statusDiv.style.color = 'red';
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Simple performance dashboard initializing...');
+    
+    // Check if Chart.js is available
+    if (typeof Chart !== 'undefined') {
+        console.log('Chart.js available, initializing charts...');
+        initializeCharts();
+        loadHistoricalData();
+    } else {
+        console.warn('Chart.js not available, skipping charts');
+    }
+    
+    loadCurrentMetrics();
+    
+    // Set up refresh button
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        loadCurrentMetrics();
+        if (typeof Chart !== 'undefined') {
+            loadHistoricalData();
+        }
+    });
+    
+    // Auto-refresh every 30 seconds
+    refreshInterval = setInterval(function() {
+        loadCurrentMetrics();
+        if (typeof Chart !== 'undefined') {
+            loadHistoricalData();
+        }
+    }, 30000);
+    
+    console.log('Simple performance dashboard initialized');
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+
+console.log('=== SIMPLE PERFORMANCE DASHBOARD SCRIPT LOADED ===');
+</script>
+{% endblock %}

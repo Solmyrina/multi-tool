@@ -1,0 +1,2093 @@
+{% extends "base.html" %}
+
+{% block title %}Weather Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>🌤️ Weather Dashboard</h2>
+            <p>Manage your favorite locations and view current weather conditions.</p>
+        </div>
+    </div>
+
+    <!-- Add Location Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>📍 Add New Location</h4>
+        </div>
+        <div class="card-body">
+            <form id="add-location-form">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label for="city-search" class="form-label">Search for a City <span class="text-danger">*</span></label>
+                            <div class="autocomplete-container" style="position: relative;">
+                                <input type="text" class="form-control" id="city-search" 
+                                       placeholder="Start typing a city name (e.g., Helsinki, London, Tokyo...)" 
+                                       autocomplete="off" required>
+                                <div id="suggestions-dropdown" class="suggestions-dropdown" style="display: none;"></div>
+                                <div class="search-status" id="search-status" style="display: none;">
+                                    <small class="text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> Searching...
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="mb-3 w-100">
+                            <button type="submit" class="btn btn-primary w-100" id="add-btn" disabled>
+                                <i class="fas fa-plus"></i> Add Location
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Selected location preview -->
+                <div id="selected-location" class="alert alert-info" style="display: none;">
+                    <strong>Selected:</strong> <span id="selected-name"></span><br>
+                    <small>
+                        <i class="fas fa-map-marker-alt"></i> 
+                        <span id="selected-coords"></span>
+                    </small>
+                </div>
+                
+                <!-- Hidden fields for form submission -->
+                <input type="hidden" id="hidden-city-name">
+                <input type="hidden" id="hidden-country">
+                <input type="hidden" id="hidden-latitude">
+                <input type="hidden" id="hidden-longitude">
+            </form>
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i> 
+                Start typing any city name and select from the suggestions. Coordinates will be automatically filled.
+            </small>
+        </div>
+    </div>
+
+    <!-- Weather Data Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>🌍 Weather Conditions</h4>
+            <div>
+                <span class="badge bg-info" id="last-updated">Never updated</span>
+                <button class="btn btn-sm btn-success ms-2" id="refresh-weather">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="weather-loading" class="text-center" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i> Loading weather data...
+            </div>
+            
+            <div id="no-locations" class="text-center text-muted" style="display: none;">
+                <i class="fas fa-map-marker-alt fa-3x mb-3"></i>
+                <h5>No Favorite Locations</h5>
+                <p>Add your favorite cities above to see their weather conditions here.</p>
+            </div>
+
+            <div class="table-responsive" id="weather-table-container" style="display: none;">
+                <table class="table table-striped table-hover" id="weather-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Location</th>
+                            <th>Temperature</th>
+                            <th>Tomorrow</th>
+                            <th>Condition</th>
+                            <th>Tomorrow's Condition</th>
+                            <th>Humidity</th>
+                            <th>Wind</th>
+                            <th>Pressure</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weather-tbody">
+                        <!-- Weather data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weather Icon Mapping -->
+<style>
+/* Fix table header contrast - make text dark on light background */
+.table-dark th,
+.thead-dark th {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+    border-color: #dee2e6 !important;
+    font-weight: 600;
+}
+
+.weather-icon {
+    width: 30px;
+    height: 30px;
+    margin-right: 8px;
+}
+
+.temperature {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.temperature.cold {
+    color: #3498db;
+}
+
+.temperature.mild {
+    color: #f39c12;
+}
+
+.temperature.warm {
+    color: #e74c3c;
+}
+
+.location-name {
+    font-weight: bold;
+}
+
+.coordinates {
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.action-buttons {
+    white-space: nowrap;
+}
+
+/* Autocomplete Styles */
+.autocomplete-container {
+    position: relative;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-main {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.suggestion-detail {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.search-status {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+#selected-location {
+    margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9em;
+    }
+    
+    .action-buttons {
+        font-size: 0.8em;
+    }
+    
+    .suggestions-dropdown {
+        font-size: 0.9em;
+    }
+}
+
+/* Bottom messages styling */
+.messages-bottom {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+    min-width: 300px;
+}
+
+.messages-bottom .alert {
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: none;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Make messages more prominent */
+.messages-bottom .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.messages-bottom .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.messages-bottom .alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+/* Mobile responsive for bottom messages */
+@media (max-width: 768px) {
+    .messages-bottom {
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        max-width: none;
+        min-width: auto;
+    }
+}
+</style>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let weatherData = [];
+let refreshInterval;
+let searchTimeout;
+let selectedCity = null;
+let currentSuggestionIndex = -1;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadWeatherData();
+    initializeCitySearch();
+    
+    // Set up auto-refresh every 10 minutes
+    refreshInterval = setInterval(loadWeatherData, 10 * 60 * 1000);
+});
+
+// Initialize city search autocomplete
+function initializeCitySearch() {
+    const searchInput = document.getElementById('city-search');
+    const suggestionsDropdown = document.getElementById('suggestions-dropdown');
+    const addBtn = document.getElementById('add-btn');
+    
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        // Clear selection when input changes
+        clearSelection();
+        
+        if (query.length < 2) {
+            hideSuggestions();
+            return;
+        }
+        
+        // Show searching status
+        showSearchStatus();
+        
+        // Debounce search requests
+        searchTimeout = setTimeout(() => {
+            searchCities(query);
+        }, 300);
+    });
+    
+    // Handle keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        const suggestions = suggestionsDropdown.querySelectorAll('.suggestion-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, suggestions.length - 1);
+            updateSuggestionHighlight(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+            updateSuggestionHighlight(suggestions);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentSuggestionIndex >= 0 && suggestions[currentSuggestionIndex]) {
+                selectSuggestion(suggestions[currentSuggestionIndex]);
+            }
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+    
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.autocomplete-container')) {
+            hideSuggestions();
+        }
+    });
+}
+
+// Add location form handler
+document.getElementById('add-location-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    addLocation();
+});
+
+// Refresh button handler
+document.getElementById('refresh-weather').addEventListener('click', function() {
+    loadWeatherData();
+});
+
+function searchCities(query) {
+    fetch(`/weather/api/search-cities?q=${encodeURIComponent(query)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            hideSearchStatus();
+            
+            if (data.success) {
+                showSuggestions(data.cities);
+            } else {
+                console.error('Search API error:', data.error);
+                showSuggestions([]);
+            }
+        })
+        .catch(error => {
+            console.error('Search request failed:', error);
+            hideSearchStatus();
+            showSuggestions([]);
+        });
+}
+
+function showSuggestions(cities) {
+    const dropdown = document.getElementById('suggestions-dropdown');
+    dropdown.innerHTML = '';
+    currentSuggestionIndex = -1;
+    
+    if (cities.length === 0) {
+        dropdown.innerHTML = '<div class="suggestion-item"><div class="suggestion-main">No cities found</div></div>';
+        dropdown.style.display = 'block';
+        return;
+    }
+    
+    cities.forEach((city, index) => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.innerHTML = `
+            <div class="suggestion-main">${city.name}</div>
+            <div class="suggestion-detail">${city.full_name}</div>
+        `;
+        
+        item.addEventListener('click', () => selectSuggestion(item, city));
+        item.cityData = city;
+        
+        dropdown.appendChild(item);
+    });
+    
+    dropdown.style.display = 'block';
+}
+
+function selectSuggestion(element, cityData = null) {
+    const city = cityData || element.cityData;
+    const searchInput = document.getElementById('city-search');
+    
+    selectedCity = city;
+    searchInput.value = city.full_name;
+    
+    // Update hidden form fields
+    document.getElementById('hidden-city-name').value = city.name;
+    document.getElementById('hidden-country').value = city.country;
+    document.getElementById('hidden-latitude').value = city.latitude;
+    document.getElementById('hidden-longitude').value = city.longitude;
+    
+    // Show selected location info
+    showSelectedLocation(city);
+    
+    // Enable add button
+    document.getElementById('add-btn').disabled = false;
+    
+    hideSuggestions();
+}
+
+function showSelectedLocation(city) {
+    const selectedDiv = document.getElementById('selected-location');
+    const nameSpan = document.getElementById('selected-name');
+    const coordsSpan = document.getElementById('selected-coords');
+    
+    nameSpan.textContent = city.full_name;
+    coordsSpan.textContent = `${city.latitude.toFixed(4)}, ${city.longitude.toFixed(4)}`;
+    
+    selectedDiv.style.display = 'block';
+}
+
+function clearSelection() {
+    selectedCity = null;
+    document.getElementById('add-btn').disabled = true;
+    document.getElementById('selected-location').style.display = 'none';
+    
+    // Clear hidden fields
+    document.getElementById('hidden-city-name').value = '';
+    document.getElementById('hidden-country').value = '';
+    document.getElementById('hidden-latitude').value = '';
+    document.getElementById('hidden-longitude').value = '';
+}
+
+function updateSuggestionHighlight(suggestions) {
+    suggestions.forEach((item, index) => {
+        item.classList.toggle('active', index === currentSuggestionIndex);
+    });
+}
+
+function hideSuggestions() {
+    document.getElementById('suggestions-dropdown').style.display = 'none';
+    currentSuggestionIndex = -1;
+}
+
+function showSearchStatus() {
+    document.getElementById('search-status').style.display = 'block';
+    hideSuggestions();
+}
+
+function hideSearchStatus() {
+    document.getElementById('search-status').style.display = 'none';
+}
+
+function addLocation() {
+    if (!selectedCity) {
+        alert('Please select a city from the suggestions.');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#add-location-form button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    submitBtn.disabled = true;
+    
+    fetch('/weather/api/locations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            city_name: selectedCity.name,
+            country: selectedCity.country,
+            latitude: selectedCity.latitude,
+            longitude: selectedCity.longitude
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear form
+            document.getElementById('add-location-form').reset();
+            clearSelection();
+            document.getElementById('city-search').value = '';
+            
+            // Show success message
+            showMessage('Location added successfully! Refreshing weather data...', 'success');
+            
+            // Reload weather data immediately and then again after a delay for weather data
+            loadWeatherData();
+            
+            // Reload again after a few seconds to get fresh weather data
+            setTimeout(() => {
+                // Show a subtle update message
+                const messages = document.querySelector('.messages-bottom');
+                if (messages && !messages.querySelector('.alert-info')) {
+                    const updateMsg = document.createElement('div');
+                    updateMsg.className = 'alert alert-info alert-dismissible fade show';
+                    updateMsg.innerHTML = `
+                        <i class="fas fa-sync-alt fa-spin"></i> Updating weather data for new location...
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="this.parentElement.remove()">
+                            <span>&times;</span>
+                        </button>
+                    `;
+                    messages.appendChild(updateMsg);
+                    
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(() => {
+                        if (updateMsg.parentNode) {
+                            updateMsg.remove();
+                        }
+                    }, 3000);
+                }
+                loadWeatherData();
+            }, 3000);
+        } else {
+            showMessage(data.error || 'Failed to add location', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Network error occurred', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = !selectedCity;
+    });
+}
+
+function loadWeatherData() {
+    const loadingDiv = document.getElementById('weather-loading');
+    const noLocationsDiv = document.getElementById('no-locations');
+    const tableContainer = document.getElementById('weather-table-container');
+    
+    loadingDiv.style.display = 'block';
+    noLocationsDiv.style.display = 'none';
+    tableContainer.style.display = 'none';
+    
+    fetch('/weather/api/current')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        loadingDiv.style.display = 'none';
+        
+        if (data.success) {
+            weatherData = data.weather_data;
+            
+            if (weatherData.length === 0) {
+                noLocationsDiv.style.display = 'block';
+            } else {
+                populateWeatherTable();
+                tableContainer.style.display = 'block';
+                updateLastUpdatedTime();
+            }
+        } else {
+            showMessage(data.error || 'Failed to load weather data', 'error');
+            noLocationsDiv.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        loadingDiv.style.display = 'none';
+        showMessage('Network error occurred', 'error');
+        noLocationsDiv.style.display = 'block';
+    });
+}
+
+function populateWeatherTable() {
+    const tbody = document.getElementById('weather-tbody');
+    tbody.innerHTML = '';
+    
+    weatherData.forEach(location => {
+        const row = document.createElement('tr');
+        
+        if (location.weather.error) {
+            row.innerHTML = `
+                <td>
+                    <div class="location-name">${location.city_name}</div>
+                    <div class="coordinates">${location.country}</div>
+                </td>
+                <td colspan="8" class="text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> ${location.weather.error}
+                </td>
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-danger" onclick="removeLocation(${location.location_id}, '${location.city_name}', '${location.country}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+        } else {
+            const weather = location.weather;
+            const temp = weather.temperature;
+            const tempClass = temp < 5 ? 'cold' : temp > 20 ? 'warm' : 'mild';
+            
+            // Tomorrow's temperature styling
+            const tomorrowTemp = weather.tomorrow_temperature;
+            const tomorrowTempClass = tomorrowTemp < 5 ? 'cold' : tomorrowTemp > 20 ? 'warm' : 'mild';
+            
+            row.innerHTML = `
+                <td>
+                    <div class="location-name">
+                        ${location.city_name}
+                    </div>
+                    <div class="coordinates">${location.country} (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})</div>
+                </td>
+                <td>
+                    <span class="temperature ${tempClass}">${temp ? temp.toFixed(1) + '°C' : 'N/A'}</span>
+                </td>
+                <td>
+                    <span class="temperature ${tomorrowTempClass}">${tomorrowTemp ? tomorrowTemp.toFixed(1) + '°C' : 'N/A'}</span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        ${getWeatherIcon(weather.symbol)}
+                        <span>${getWeatherDescription(weather.symbol)}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        ${getWeatherIcon(weather.tomorrow_symbol)}
+                        <span>${getWeatherDescription(weather.tomorrow_symbol)}</span>
+                    </div>
+                </td>
+                <td>${weather.humidity ? weather.humidity.toFixed(0) + '%' : 'N/A'}</td>
+                <td>
+                    ${weather.wind_speed ? weather.wind_speed.toFixed(1) + ' m/s' : 'N/A'}
+                    ${weather.wind_direction ? '<br><small>' + getWindDirection(weather.wind_direction) + '</small>' : ''}
+                </td>
+                <td>${weather.pressure ? weather.pressure.toFixed(0) + ' hPa' : 'N/A'}</td>
+                <td>
+                    <small>${formatTime(weather.timestamp)}</small>
+                </td>
+                <td class="action-buttons">
+                    <button class="btn btn-sm btn-info me-1" onclick="showHistoricalData(${location.location_id}, '${location.city_name}', '${location.country}')">
+                        <i class="fas fa-chart-line"></i> Historical
+                    </button>
+                    <button class="btn btn-sm btn-success me-1" onclick="showForecastData(${location.location_id}, '${location.city_name}', '${location.country}', ${location.latitude}, ${location.longitude})">
+                        <i class="fas fa-cloud-sun"></i> Forecast
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="removeLocation(${location.location_id}, '${location.city_name}', '${location.country}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+        }
+        
+        tbody.appendChild(row);
+    });
+}
+
+function removeLocation(locationId, cityName, country) {
+    if (!confirm(`Remove ${cityName}, ${country} from favorites?`)) {
+        return;
+    }
+    
+    fetch(`/weather/api/locations/${locationId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            loadWeatherData();
+        } else {
+            showMessage(data.error || 'Failed to remove location', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Network error occurred', 'error');
+    });
+}
+
+function getWeatherIcon(symbol) {
+    // Simplified weather icon mapping based on yr.no symbol codes
+    const iconMap = {
+        'clearsky': '☀️',
+        'partlycloudy': '🌤️', 
+        'cloudy': '☁️',
+        'overcast': '☁️',
+        'lightrain': '🌦️',
+        'rain': '🌧️',
+        'heavyrain': '⛈️',
+        'lightsnow': '🌨️',
+        'snow': '❄️',
+        'fog': '🌫️',
+        'sleet': '🌨️'
+    };
+    
+    // Extract base weather condition from symbol code
+    const baseSymbol = symbol.split('_')[0];
+    return iconMap[baseSymbol] || '🌤️';
+}
+
+function getWeatherDescription(symbol) {
+    const descMap = {
+        'clearsky': 'Clear Sky',
+        'partlycloudy': 'Partly Cloudy',
+        'cloudy': 'Cloudy',
+        'overcast': 'Overcast',
+        'lightrain': 'Light Rain',
+        'rain': 'Rain',
+        'heavyrain': 'Heavy Rain',
+        'lightsnow': 'Light Snow',
+        'snow': 'Snow',
+        'fog': 'Fog',
+        'sleet': 'Sleet'
+    };
+    
+    const baseSymbol = symbol.split('_')[0];
+    return descMap[baseSymbol] || 'Unknown';
+}
+
+function getWindDirection(degrees) {
+    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    const index = Math.round(degrees / 22.5) % 16;
+    return directions[index];
+}
+
+function formatTime(timestamp) {
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function updateLastUpdatedTime() {
+    const badge = document.getElementById('last-updated');
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-GB', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    });
+    badge.textContent = `Updated: ${timeString}`;
+}
+
+function showMessage(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="this.parentElement.remove()">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    // Find bottom messages container
+    let messagesContainer = document.querySelector('.messages-bottom');
+    if (!messagesContainer) {
+        // Fallback: create bottom messages container if it doesn't exist
+        messagesContainer = document.createElement('div');
+        messagesContainer.className = 'messages messages-bottom';
+        document.body.appendChild(messagesContainer);
+    }
+    
+    // Add message to container
+    messagesContainer.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Show historical weather data modal
+function showHistoricalData(locationId, cityName, country) {
+    const modal = document.getElementById('historical-weather-modal');
+    const title = document.getElementById('modal-location-title');
+    const loading = document.getElementById('historical-loading');
+    const error = document.getElementById('historical-error');
+    const content = document.getElementById('historical-content');
+    
+    // Store current location ID and reset trends data
+    currentLocationId = locationId;
+    trendsData = null;
+    if (trendChart) {
+        trendChart.destroy();
+        trendChart = null;
+    }
+    
+    // Reset to summary tab
+    showTab('summary');
+    
+    // Set title and show modal
+    title.textContent = `📊 ${cityName}, ${country} - Historical Weather Data`;
+    modal.style.display = 'block';
+    
+    // Show loading state
+    loading.style.display = 'block';
+    error.style.display = 'none';
+    content.style.display = 'none';
+    
+    // Fetch historical data
+    fetch(`/weather/api/historical/${locationId}`)
+        .then(response => {
+            // Check if response is a redirect (likely authentication required)
+            if (response.redirected || response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Invalid response format - authentication may be required');
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return; // Handle redirect case
+            
+            loading.style.display = 'none';
+            
+            if (data.success) {
+                populateHistoricalData(data.data);
+                content.style.display = 'block';
+            } else {
+                showHistoricalError(data.error || 'Failed to load historical data');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching historical data:', error);
+            loading.style.display = 'none';
+            
+            if (error.message.includes('authentication')) {
+                showHistoricalError('Authentication required. Please refresh the page and log in again.');
+            } else {
+                showHistoricalError('Network error occurred. Please refresh the page and try again.');
+            }
+        });
+}
+
+// Close historical data modal
+function closeHistoricalModal() {
+    const modal = document.getElementById('historical-weather-modal');
+    modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const historicalModal = document.getElementById('historical-weather-modal');
+    const forecastModal = document.getElementById('forecast-weather-modal');
+    
+    if (event.target === historicalModal) {
+        closeHistoricalModal();
+    } else if (event.target === forecastModal) {
+        closeForecastModal();
+    }
+}
+
+// Handle escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeHistoricalModal();
+        closeForecastModal();
+    }
+});
+
+function showHistoricalError(message) {
+    const error = document.getElementById('historical-error');
+    const errorMessage = document.getElementById('historical-error-message');
+    
+    errorMessage.textContent = message;
+    error.style.display = 'block';
+}
+
+// Show forecast weather data modal
+function showForecastData(locationId, cityName, country, latitude, longitude) {
+    const modal = document.getElementById('forecast-weather-modal');
+    const title = document.getElementById('forecast-modal-location-title');
+    const loading = document.getElementById('forecast-loading');
+    const error = document.getElementById('forecast-error');
+    const content = document.getElementById('forecast-content');
+    
+    // Set title and show modal
+    title.textContent = `🌤️ ${cityName}, ${country} - Weather Forecast`;
+    modal.style.display = 'block';
+    
+    // Show loading state
+    loading.style.display = 'block';
+    error.style.display = 'none';
+    content.style.display = 'none';
+    
+    // Ensure the hourly tab is active by default
+    document.getElementById('hourly-tab').classList.add('active');
+    document.getElementById('daily-tab').classList.remove('active');
+    document.getElementById('hourly-content').classList.add('show', 'active');
+    document.getElementById('daily-content').classList.remove('show', 'active');
+    
+    // Fetch both hourly and daily forecast data
+    Promise.all([
+        fetch(`/weather/api/hourly/${locationId}`),
+        fetch(`/weather/api/forecast/${locationId}`)
+    ])
+    .then(responses => {
+        // Check each response individually
+        const [hourlyResponse, dailyResponse] = responses;
+        
+        // Check hourly response
+        if (hourlyResponse.redirected || hourlyResponse.status === 401) {
+            window.location.href = '/login';
+            return Promise.reject('Authentication required');
+        }
+        
+        // Check daily response  
+        if (dailyResponse.redirected || dailyResponse.status === 401) {
+            window.location.href = '/login';
+            return Promise.reject('Authentication required');
+        }
+        
+        // Check if hourly response is OK
+        if (!hourlyResponse.ok) {
+            // If hourly fails but daily might work, try to get daily only
+            console.warn(`Hourly data failed with status ${hourlyResponse.status}, trying daily only`);
+            return Promise.all([
+                Promise.resolve({ success: false, error: `Hourly data unavailable (${hourlyResponse.status})` }),
+                dailyResponse.json()
+            ]);
+        }
+        
+        // Check if daily response is OK
+        if (!dailyResponse.ok) {
+            throw new Error(`Daily forecast failed with status: ${dailyResponse.status}`);
+        }
+        
+        // Both responses OK, parse JSON
+        return Promise.all([
+            hourlyResponse.json(),
+            dailyResponse.json()
+        ]);
+    })
+    .then(([hourlyData, dailyData]) => {
+        loading.style.display = 'none';
+        
+        if (dailyData.success) {
+            // Always populate daily data if available
+            populateForecastData(dailyData.data);
+            
+            // Try to populate hourly data if available
+            if (hourlyData.success) {
+                if (hourlyData.data && hourlyData.data.hourly_forecasts) {
+                    populateHourlyData(hourlyData.data.hourly_forecasts);
+                } else {
+                    populateHourlyError('Hourly data format error');
+                }
+            } else {
+                // Show error message in hourly tab but don't fail completely
+                populateHourlyError(hourlyData.error || 'Hourly data temporarily unavailable');
+                // Switch to daily tab since hourly failed
+                document.getElementById('daily-tab').classList.add('active');
+                document.getElementById('hourly-tab').classList.remove('active');
+                document.getElementById('daily-content').classList.add('show', 'active');
+                document.getElementById('hourly-content').classList.remove('show', 'active');
+            }
+            
+            content.style.display = 'block';
+        } else {
+            const errorMsg = dailyData.error || 'Failed to load forecast data';
+            showForecastError(errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching forecast data:', error);
+        loading.style.display = 'none';
+        
+        if (error.message.includes('authentication')) {
+            showForecastError('Authentication required. Please refresh the page and log in again.');
+        } else {
+            showForecastError('Network error occurred. Please refresh the page and try again.');
+        }
+    });
+}
+
+// Close forecast data modal
+function closeForecastModal() {
+    const modal = document.getElementById('forecast-weather-modal');
+    modal.style.display = 'none';
+}
+
+function showForecastError(message) {
+    const error = document.getElementById('forecast-error');
+    const errorMessage = document.getElementById('forecast-error-message');
+    
+    errorMessage.textContent = message;
+    error.style.display = 'block';
+}
+
+function populateForecastData(data) {
+    // Populate forecast table
+    populateForecastTable(data.forecasts);
+}
+
+function populateHourlyData(hourlyForecasts) {
+    const tbody = document.getElementById('hourly-table-body');
+    
+    // Update timezone info
+    const timezoneInfo = document.getElementById('timezone-info');
+    if (timezoneInfo) {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        timezoneInfo.textContent = `(${timezone})`;
+    }
+    
+    if (!hourlyForecasts || hourlyForecasts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hourly data available</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    hourlyForecasts.forEach(hour => {
+        const row = document.createElement('tr');
+        
+        // Convert timestamp to user's local time
+        let timeDisplay = 'N/A';
+        if (hour.timestamp) {
+            const localDate = new Date(hour.timestamp * 1000); // Convert Unix timestamp to milliseconds
+            timeDisplay = localDate.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            // Add date if it's different from today
+            const today = new Date();
+            if (localDate.toDateString() !== today.toDateString()) {
+                const dateStr = localDate.toLocaleDateString([], { 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                timeDisplay = `${timeDisplay}<br><small class="text-muted">${dateStr}</small>`;
+            }
+        } else {
+            // Fallback to the server-provided time if timestamp is not available
+            timeDisplay = hour.time || 'N/A';
+        }
+        
+        // Convert values to numbers if they exist
+        const temp = hour.temperature ? parseFloat(hour.temperature).toFixed(1) : 'N/A';
+        const humidity = hour.humidity ? parseFloat(hour.humidity).toFixed(0) : 'N/A';
+        const windSpeed = hour.wind_speed ? parseFloat(hour.wind_speed).toFixed(1) : 'N/A';
+        const pressure = hour.pressure ? parseFloat(hour.pressure).toFixed(0) : 'N/A';
+        const precipitation = hour.precipitation ? parseFloat(hour.precipitation).toFixed(1) : '0.0';
+        
+        // Weather condition with icon
+        const weatherIcon = getWeatherIcon(hour.weather_symbol);
+        const weatherDesc = hour.weather_description || 'Unknown';
+        
+        row.innerHTML = `
+            <td><strong>${timeDisplay}</strong></td>
+            <td>${temp}°</td>
+            <td>
+                <div class="d-flex align-items-center">
+                    ${weatherIcon}
+                    <span class="ms-1">${weatherDesc}</span>
+                </div>
+            </td>
+            <td>${precipitation}</td>
+            <td>${humidity}%</td>
+            <td>${windSpeed}</td>
+            <td>${pressure}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function populateHourlyError(errorMessage) {
+    const tbody = document.getElementById('hourly-table-body');
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-warning">
+        <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+        <br><small>Daily forecast is still available in the other tab.</small>
+    </td></tr>`;
+}
+
+function populateForecastTable(forecasts) {
+    const tbody = document.getElementById('forecast-table-body');
+    
+    if (!forecasts || forecasts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No forecast data available</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    forecasts.forEach(day => {
+        const row = document.createElement('tr');
+        
+        // Format date
+        const date = new Date(day.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        // Convert values to numbers if they exist
+        const tempMin = day.temperature_min ? parseFloat(day.temperature_min) : null;
+        const tempMax = day.temperature_max ? parseFloat(day.temperature_max) : null;
+        const precipitation = day.precipitation ? parseFloat(day.precipitation) : null;
+        const humidity = day.humidity ? parseFloat(day.humidity) : null;
+        const windSpeed = day.wind_speed ? parseFloat(day.wind_speed) : null;
+        
+        // Weather icon
+        const weatherIcon = getWeatherIcon(day.weather_symbol || 'unknown');
+        
+        row.innerHTML = `
+            <td><strong>${formattedDate}</strong></td>
+            <td class="text-primary">${tempMin ? tempMin.toFixed(1) + '°C' : 'N/A'}</td>
+            <td class="text-danger">${tempMax ? tempMax.toFixed(1) + '°C' : 'N/A'}</td>
+            <td class="text-info">${precipitation ? precipitation.toFixed(1) + ' mm' : '0.0 mm'}</td>
+            <td>${humidity ? humidity.toFixed(0) + '%' : 'N/A'}</td>
+            <td>${windSpeed ? windSpeed.toFixed(1) + ' m/s' : 'N/A'}</td>
+            <td>${weatherIcon} ${day.weather_description || 'Unknown'}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function populateHistoricalData(data) {
+    // Populate summary statistics
+    populateWeatherStats(data.stats);
+    
+    // Populate monthly averages
+    populateMonthlyAverages(data.monthly_averages);
+    
+    // Populate recent weather table
+    populateHistoricalTable(data.recent_weather);
+    
+    // Show data availability info if present
+    if (data.data_info && data.data_info.data_note) {
+        showDataAvailabilityNote(data.data_info.data_note);
+    }
+}
+
+function populateWeatherStats(stats) {
+    const statsContainer = document.getElementById('weather-stats');
+    
+    // Convert string values from PostgreSQL to numbers
+    const avgTemp = parseFloat(stats.avg_temperature) || 0;
+    const minTemp = parseFloat(stats.min_temperature) || 0;
+    const maxTemp = parseFloat(stats.max_temperature) || 0;
+    const avgHumidity = parseFloat(stats.avg_humidity) || 0;
+    const totalPrecip = parseFloat(stats.total_precipitation) || 0;
+    const avgPrecip = parseFloat(stats.avg_precipitation) || 0;
+    const avgWind = parseFloat(stats.avg_wind_speed) || 0;
+    const maxWind = parseFloat(stats.max_wind_speed) || 0;
+    const totalDays = parseInt(stats.total_days) || 0;
+    
+    const statsHtml = `
+        <div class="col-md-3 col-sm-6">
+            <div class="weather-stat-card temperature">
+                <h6>Average Temperature</h6>
+                <div class="stat-value">${avgTemp.toFixed(1)}°C</div>
+                <small class="text-muted">Range: ${minTemp.toFixed(1)}°C to ${maxTemp.toFixed(1)}°C</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="weather-stat-card humidity">
+                <h6>Average Humidity</h6>
+                <div class="stat-value">${avgHumidity.toFixed(0)}%</div>
+                <small class="text-muted">Over ${totalDays} days</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="weather-stat-card precipitation">
+                <h6>Total Precipitation</h6>
+                <div class="stat-value">${totalPrecip.toFixed(0)}mm</div>
+                <small class="text-muted">Average: ${avgPrecip.toFixed(1)}mm/day</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="weather-stat-card wind">
+                <h6>Average Wind Speed</h6>
+                <div class="stat-value">${avgWind.toFixed(1)} m/s</div>
+                <small class="text-muted">Max: ${maxWind.toFixed(1)} m/s</small>
+            </div>
+        </div>
+    `;
+    
+    statsContainer.innerHTML = statsHtml;
+}
+
+function populateMonthlyAverages(monthlyData) {
+    const tbody = document.getElementById('monthly-averages-table-body');
+    
+    if (!monthlyData || monthlyData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No monthly data available</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    monthlyData.forEach(month => {
+        const row = document.createElement('tr');
+        
+        // Convert PostgreSQL strings to numbers
+        const avgTemp = month.avg_temperature ? parseFloat(month.avg_temperature) : null;
+        const avgPrecip = month.avg_precipitation ? parseFloat(month.avg_precipitation) : null;
+        const dataPoints = parseInt(month.data_points) || 0;
+        
+        // Clean up month name (remove extra spaces)
+        const monthName = month.month_name ? month.month_name.trim() : 'Unknown';
+        
+        row.innerHTML = `
+            <td><strong>${monthName}</strong></td>
+            <td class="text-primary">${avgTemp ? avgTemp.toFixed(1) + '°C' : 'N/A'}</td>
+            <td class="text-info">${avgPrecip ? avgPrecip.toFixed(1) + ' mm' : 'N/A'}</td>
+            <td class="text-muted">${dataPoints} days</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function populateHistoricalTable(recentWeather) {
+    const tbody = document.getElementById('historical-table-body');
+    
+    if (!recentWeather || recentWeather.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No recent weather data available</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    
+    recentWeather.forEach(day => {
+        const row = document.createElement('tr');
+        
+        // Format date
+        const date = new Date(day.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        // Weather icon
+        const weatherIcon = getHistoricalWeatherIcon(day.weather_symbol);
+        
+        // Convert PostgreSQL strings to numbers for .toFixed()
+        const tempMin = day.temperature_min ? parseFloat(day.temperature_min) : null;
+        const tempMax = day.temperature_max ? parseFloat(day.temperature_max) : null;
+        const tempAvg = day.temperature_avg ? parseFloat(day.temperature_avg) : null;
+        const humidity = day.humidity_avg ? parseFloat(day.humidity_avg) : null;
+        const precipitation = day.precipitation_total ? parseFloat(day.precipitation_total) : null;
+        const windSpeed = day.wind_speed_avg ? parseFloat(day.wind_speed_avg) : null;
+        
+        // Special styling for incomplete data
+        const isIncomplete = (!tempMin && !tempMax && tempAvg);
+        const rowClass = isIncomplete ? 'table-warning' : '';
+        
+        row.className = rowClass;
+        row.innerHTML = `
+            <td><strong>${formattedDate}</strong></td>
+            <td class="text-primary">${tempMin ? tempMin.toFixed(1) : (isIncomplete ? 'Pending' : 'N/A')}</td>
+            <td class="text-danger">${tempMax ? tempMax.toFixed(1) : (isIncomplete ? 'Pending' : 'N/A')}</td>
+            <td class="text-success">${tempAvg ? tempAvg.toFixed(1) : 'N/A'}</td>
+            <td>${humidity ? humidity.toFixed(0) + '%' : 'N/A'}</td>
+            <td>${precipitation ? precipitation.toFixed(1) : '0.0'}</td>
+            <td>${windSpeed ? windSpeed.toFixed(1) : 'N/A'}</td>
+            <td>${weatherIcon} ${getHistoricalWeatherDescription(day.weather_symbol)}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function showDataAvailabilityNote(message) {
+    // Find the historical table container and add a note above it
+    const tableContainer = document.querySelector('#historical-content .row:last-child');
+    
+    // Check if note already exists
+    let existingNote = document.getElementById('data-availability-note');
+    if (existingNote) {
+        existingNote.remove();
+    }
+    
+    // Create new note
+    const noteDiv = document.createElement('div');
+    noteDiv.id = 'data-availability-note';
+    noteDiv.className = 'alert alert-info alert-dismissible mb-3';
+    noteDiv.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        <strong>Data Availability:</strong> ${message}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    // Insert before the table container
+    if (tableContainer) {
+        tableContainer.parentNode.insertBefore(noteDiv, tableContainer);
+    }
+}
+
+function getHistoricalWeatherIcon(symbol) {
+    if (!symbol) return '🌤️';
+    
+    const iconMap = {
+        'clear': '☀️',
+        'fair': '🌤️',
+        'partly-cloudy': '⛅',
+        'cloudy': '☁️',
+        'rain-showers': '🌦️',
+        'rain': '🌧️',
+        'heavy-rain': '⛈️',
+        'snow-showers': '🌨️',
+        'snow': '❄️',
+        'fog': '🌫️',
+        'sleet': '🌨️'
+    };
+    
+    return iconMap[symbol] || '🌤️';
+}
+
+function getHistoricalWeatherDescription(symbol) {
+    if (!symbol) return 'Unknown';
+    
+    const descMap = {
+        'clear': 'Clear',
+        'fair': 'Fair',
+        'partly-cloudy': 'Partly Cloudy',
+        'cloudy': 'Cloudy',
+        'rain-showers': 'Rain Showers',
+        'rain': 'Rain',
+        'heavy-rain': 'Heavy Rain',
+        'snow-showers': 'Snow Showers',
+        'snow': 'Snow',
+        'fog': 'Fog',
+        'sleet': 'Sleet'
+    };
+    
+    return descMap[symbol] || symbol.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Alias for showMessage to support different call patterns
+function showAlert(message, type) {
+    showMessage(message, type);
+}
+
+// Clean up interval on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+});
+
+// Simple tab functionality for forecast modal
+document.addEventListener('click', function(event) {
+    if (event.target.matches('[data-bs-toggle="tab"]')) {
+        event.preventDefault();
+        
+        const targetTab = event.target;
+        const targetPane = document.querySelector(targetTab.getAttribute('data-bs-target'));
+        
+        // Remove active from all tabs
+        document.querySelectorAll('#forecast-tabs .nav-link').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Remove active from all panes
+        document.querySelectorAll('#forecast-tab-content .tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Activate clicked tab and corresponding pane
+        targetTab.classList.add('active');
+        targetPane.classList.add('show', 'active');
+    }
+});
+
+// Global variables for trends
+let currentLocationId = null;
+let trendsData = null;
+let trendChart = null;
+
+// Tab switching functionality for historical modal
+function showTab(tabName) {
+    // Remove active class from all tabs and panes
+    document.querySelectorAll('.nav-link').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    
+    // Activate the selected tab and pane
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+    document.getElementById(`${tabName}-tab-pane`).classList.add('active');
+    
+    // Load trends data if trends tab is activated
+    if (tabName === 'trends' && currentLocationId && !trendsData) {
+        loadTrendsData(currentLocationId);
+    }
+}
+
+// Load 20-year trends data
+function loadTrendsData(locationId) {
+    const trendsLoading = document.getElementById('trends-loading');
+    const trendsContent = document.getElementById('trends-content');
+    
+    trendsLoading.style.display = 'block';
+    trendsContent.style.display = 'none';
+    
+    fetch(`/weather/api/monthly-trends/${locationId}`)
+        .then(response => {
+            if (response.redirected || response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                trendsData = data.data;
+                populateTrendsData();
+                trendsLoading.style.display = 'none';
+                trendsContent.style.display = 'block';
+            } else {
+                console.error('Failed to load trends data:', data.error);
+                trendsLoading.innerHTML = '<div class="alert alert-danger">Failed to load trends data: ' + (data.error || 'Unknown error') + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching trends data:', error);
+            trendsLoading.innerHTML = '<div class="alert alert-danger">Network error occurred while loading trends data.</div>';
+        });
+}
+
+// Populate trends data and chart
+function populateTrendsData() {
+    if (!trendsData) return;
+    
+    // Set up month selector event handlers
+    document.querySelectorAll('.month-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Update active button
+            document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update chart
+            updateTrendChart(this.dataset.month);
+        });
+    });
+    
+    // Initialize with January data
+    updateTrendChart('Jan');
+}
+
+// Update trend chart for selected month
+function updateTrendChart(monthName) {
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+    const monthData = trendsData.trends[monthName];
+    
+    if (!monthData || monthData.years.length === 0) {
+        document.getElementById('trend-stats').innerHTML = 
+            '<i class="fas fa-info-circle"></i> No data available for ' + monthName;
+        return;
+    }
+    
+    // Destroy existing chart if it exists
+    if (trendChart) {
+        trendChart.destroy();
+    }
+    
+    // Filter out null values and create parallel arrays
+    const validData = [];
+    for (let i = 0; i < monthData.years.length; i++) {
+        if (monthData.avg_temperatures[i] !== null) {
+            validData.push({
+                year: monthData.years[i],
+                avgTemp: monthData.avg_temperatures[i],
+                minTemp: monthData.min_temperatures[i],
+                maxTemp: monthData.max_temperatures[i]
+            });
+        }
+    }
+    
+    if (validData.length === 0) {
+        document.getElementById('trend-stats').innerHTML = 
+            '<i class="fas fa-info-circle"></i> No temperature data available for ' + monthName;
+        return;
+    }
+    
+    // Sort by year
+    validData.sort((a, b) => a.year - b.year);
+    
+    // Create chart
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: validData.map(d => d.year),
+            datasets: [{
+                label: 'Average Temperature (°C)',
+                data: validData.map(d => d.avgTemp),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }, {
+                label: 'Min Temperature (°C)',
+                data: validData.map(d => d.minTemp),
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                tension: 0.1
+            }, {
+                label: 'Max Temperature (°C)',
+                data: validData.map(d => d.maxTemp),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: monthName + ' Temperature Trends (' + validData[0].year + '-' + validData[validData.length-1].year + ')'
+                },
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Temperature (°C)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Year'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Calculate and display statistics
+    const avgTemps = validData.map(d => d.avgTemp);
+    const minTemp = Math.min(...avgTemps);
+    const maxTemp = Math.max(...avgTemps);
+    const avgTemp = avgTemps.reduce((a, b) => a + b, 0) / avgTemps.length;
+    
+    // Simple linear trend calculation
+    const n = validData.length;
+    const sumX = validData.reduce((sum, d, i) => sum + i, 0);
+    const sumY = validData.reduce((sum, d) => sum + d.avgTemp, 0);
+    const sumXY = validData.reduce((sum, d, i) => sum + i * d.avgTemp, 0);
+    const sumXX = validData.reduce((sum, d, i) => sum + i * i, 0);
+    
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const trendDirection = slope > 0.1 ? 'warming' : slope < -0.1 ? 'cooling' : 'stable';
+    const trendIcon = slope > 0.1 ? '📈' : slope < -0.1 ? '📉' : '➡️';
+    
+    document.getElementById('trend-stats').innerHTML = `
+        <strong>${monthName} Temperature Statistics (${validData.length} years of data):</strong><br>
+        Average: ${avgTemp.toFixed(1)}°C | 
+        Range: ${minTemp.toFixed(1)}°C to ${maxTemp.toFixed(1)}°C | 
+        Trend: ${trendIcon} ${trendDirection} (${Math.abs(slope).toFixed(3)}°C/year)
+    `;
+}
+</script>
+
+<!-- Historical Weather Data Modal -->
+<div id="historical-weather-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 95%; max-width: 1200px;">
+        <div class="modal-header">
+            <h3 id="modal-location-title">Historical Weather Data</h3>
+            <span class="modal-close" onclick="closeHistoricalModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="historical-loading" class="text-center" style="display: none;">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Loading historical weather data...</p>
+            </div>
+            
+            <div id="historical-error" class="alert alert-danger" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="historical-error-message">Failed to load historical data</span>
+            </div>
+            
+            <div id="historical-content" style="display: none;">
+                <!-- Tab Navigation -->
+                <div class="nav-tabs-container mb-3">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-tab-pane" type="button" role="tab" onclick="showTab('summary')">
+                                📊 Summary
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends-tab-pane" type="button" role="tab" onclick="showTab('trends')">
+                                📈 20-Year Trends
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent-tab-pane" type="button" role="tab" onclick="showTab('recent')">
+                                📅 Recent Data
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Summary Tab -->
+                    <div class="tab-pane active" id="summary-tab-pane" role="tabpanel">
+                        <!-- Summary Statistics -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5>📊 10-Year Weather Summary</h5>
+                                <div class="row" id="weather-stats">
+                                    <!-- Stats will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Monthly Averages -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5>📅 Monthly Climate Averages (All Years)</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>Month</th>
+                                                <th>Avg Temperature (°C)</th>
+                                                <th>Avg Precipitation (mm)</th>
+                                                <th>Data Points</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="monthly-averages-table-body">
+                                            <!-- Monthly averages will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 20-Year Trends Tab -->
+                    <div class="tab-pane" id="trends-tab-pane" role="tabpanel">
+                        <div id="trends-loading" class="text-center" style="display: none;">
+                            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                            <p>Loading 20-year trend data...</p>
+                        </div>
+                        
+                        <div id="trends-content" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <h5>📈 Monthly Temperature Trends (Past 20 Years)</h5>
+                                    <p class="text-muted">Select a month to view its temperature trend over the years:</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Month Selection -->
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <div class="btn-group" role="group" id="month-selector">
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn active" data-month="Jan">Jan</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Feb">Feb</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Mar">Mar</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Apr">Apr</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="May">May</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Jun">Jun</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Jul">Jul</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Aug">Aug</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Sep">Sep</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Oct">Oct</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Nov">Nov</button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm month-btn" data-month="Dec">Dec</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Chart Container -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <canvas id="trend-chart" width="800" height="400"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Trend Statistics -->
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <div id="trend-stats" class="alert alert-info">
+                                        <!-- Trend statistics will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Data Tab -->
+                    <div class="tab-pane" id="recent-tab-pane" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5>📅 Recent Daily Weather (Last 30 Days)</h5>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="thead-dark sticky-top">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Min °C</th>
+                                                <th>Max °C</th>
+                                                <th>Avg °C</th>
+                                                <th>Humidity %</th>
+                                                <th>Precipitation mm</th>
+                                                <th>Wind m/s</th>
+                                                <th>Condition</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="historical-table-body">
+                                            <!-- Historical data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Styles -->
+<style>
+.modal {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 2% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 20px 25px;
+    background: #2c3e50;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.modal-close {
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: #e74c3c;
+}
+
+.modal-body {
+    padding: 25px;
+    max-height: calc(90vh - 100px);
+    overflow-y: auto;
+}
+
+.weather-stat-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    margin-bottom: 15px;
+    border-left: 4px solid #3498db;
+}
+
+.weather-stat-card h6 {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.weather-stat-card .stat-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.weather-stat-card.temperature {
+    border-left-color: #e74c3c;
+}
+
+.weather-stat-card.humidity {
+    border-left-color: #3498db;
+}
+
+.weather-stat-card.precipitation {
+    border-left-color: #9b59b6;
+}
+
+.weather-stat-card.wind {
+    border-left-color: #1abc9c;
+}
+
+.clickable-location:hover {
+    color: #0056b3 !important;
+    text-decoration: none !important;
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 1% auto;
+        width: 98%;
+        max-height: 95vh;
+    }
+    
+    .modal-body {
+        padding: 15px;
+    }
+    
+    .modal-header {
+        padding: 15px;
+    }
+    
+    .modal-header h3 {
+        font-size: 1.2rem;
+    }
+}
+
+/* Tab styling for forecast modal */
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.nav-tabs .nav-link {
+    margin-bottom: -1px;
+    background: none;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    cursor: pointer;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+    isolation: isolate;
+}
+
+.nav-tabs .nav-link.active {
+    color: #495057;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.tab-content > .tab-pane {
+    display: none;
+}
+
+.tab-content > .active {
+    display: block;
+}
+
+.tab-pane.fade.show {
+    opacity: 1;
+}
+
+.tab-pane.fade {
+    opacity: 0;
+    transition: opacity 0.15s linear;
+}
+
+.table-sm th,
+.table-sm td {
+    padding: 0.3rem;
+}
+</style>
+
+<!-- Forecast Weather Data Modal -->
+<div id="forecast-weather-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="forecast-modal-location-title">7-Day Weather Forecast</h3>
+            <span class="modal-close" onclick="closeForecastModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="forecast-loading" class="text-center" style="display: none;">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Loading forecast data...</p>
+            </div>
+            
+            <div id="forecast-error" class="alert alert-danger" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="forecast-error-message">Failed to load forecast data</span>
+            </div>
+            
+            <div id="forecast-content" style="display: none;">
+                <!-- Tab navigation -->
+                <ul class="nav nav-tabs mb-3" id="forecast-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="hourly-tab" data-bs-toggle="tab" data-bs-target="#hourly-content" type="button" role="tab" aria-controls="hourly-content" aria-selected="true">
+                            <i class="fas fa-clock"></i> Next 24 Hours
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily-content" type="button" role="tab" aria-controls="daily-content" aria-selected="false">
+                            <i class="fas fa-calendar-week"></i> 7-Day Forecast
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab content -->
+                <div class="tab-content" id="forecast-tab-content">
+                    <!-- Hourly forecast tab -->
+                    <div class="tab-pane fade show active" id="hourly-content" role="tabpanel" aria-labelledby="hourly-tab">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5>🕒 Hourly Weather Forecast - Next 24 Hours</h5>
+                                <p class="text-muted small mb-3">
+                                    <i class="fas fa-globe"></i> Times shown in your local timezone
+                                    <span id="timezone-info"></span>
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-sm">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>Time (Local)</th>
+                                                <th>Temp °C</th>
+                                                <th>Condition</th>
+                                                <th>Precip mm</th>
+                                                <th>Humidity %</th>
+                                                <th>Wind m/s</th>
+                                                <th>Pressure hPa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="hourly-table-body">
+                                            <!-- Hourly data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily forecast tab -->
+                    <div class="tab-pane fade" id="daily-content" role="tabpanel" aria-labelledby="daily-tab">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5>📅 7-Day Weather Forecast</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="thead-dark">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Min °C</th>
+                                                <th>Max °C</th>
+                                                <th>Precipitation mm</th>
+                                                <th>Humidity %</th>
+                                                <th>Wind m/s</th>
+                                                <th>Condition</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="forecast-table-body">
+                                            <!-- Forecast data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages Container (positioned at bottom) -->
+    <div class="messages messages-bottom"></div>
+</div>
+
+{% endblock %}

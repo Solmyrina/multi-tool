@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>API Test Page</h1>
+    <div id="results"></div>
+    
+    <script>
+    console.log('Starting API test...');
+    
+    $(document).ready(function() {
+        console.log('Document ready, testing API...');
+        
+        $.get('/api/crypto/strategies')
+            .done(function(data) {
+                console.log('API success:', data);
+                $('#results').html('<pre>' + JSON.stringify(data, null, 2) + '</pre>');
+            })
+            .fail(function(xhr) {
+                console.error('API failed:', xhr);
+                $('#results').html('API failed: ' + xhr.status + ' ' + xhr.statusText);
+            });
+    });
+    </script>
+</body>
+</html>

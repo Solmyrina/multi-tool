@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Stock Dashboard API Test</h1>
+    
+    <div class="test-section">
+        <h2>API Endpoint Tests</h2>
+        <button id="test-latest-btn">Test Latest Stocks API</button>
+        <button id="test-prices-btn">Test Stock Prices API</button>
+        <button id="test-both-btn">Test Both APIs</button>
+        <div id="test-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Logs</h2>
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('console-output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            output.appendChild(div);
+            console.log(message);
+        }
+
+        function testLatest() {
+            log('Testing /stocks/api/latest...', 'info');
+            fetch('/stocks/api/latest')
+                .then(response => {
+                    log(`Response status: ${response.status}`, response.ok ? 'success' : 'error');
+                    return response.json();
+                })
+                .then(data => {
+                    log(`Latest API success: ${JSON.stringify(data, null, 2)}`, 'success');
+                    document.getElementById('test-results').innerHTML += 
+                        `<pre class="success">Latest API Response:\n${JSON.stringify(data, null, 2)}</pre>`;
+                })
+                .catch(error => {
+                    log(`Latest API error: ${error.message}`, 'error');
+                    document.getElementById('test-results').innerHTML += 
+                        `<pre class="error">Latest API Error: ${error.message}</pre>`;
+                });
+        }
+
+        function testPrices() {
+            log('Testing /stocks/api/prices...', 'info');
+            fetch('/stocks/api/prices?symbol=AAPL&limit=3')
+                .then(response => {
+                    log(`Response status: ${response.status}`, response.ok ? 'success' : 'error');
+                    return response.json();
+                })
+                .then(data => {
+                    log(`Prices API success: ${data.data_points} records`, 'success');
+                    document.getElementById('test-results').innerHTML += 
+                        `<pre class="success">Prices API Response:\n${JSON.stringify(data, null, 2)}</pre>`;
+                })
+                .catch(error => {
+                    log(`Prices API error: ${error.message}`, 'error');
+                    document.getElementById('test-results').innerHTML += 
+                        `<pre class="error">Prices API Error: ${error.message}</pre>`;
+                });
+        }
+
+        function testBoth() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('console-output').innerHTML = '';
+            testLatest();
+            setTimeout(testPrices, 1000);
+        }
+
+        // Test on page load
+        window.onload = function() {
+            log('Page loaded, running initial tests...', 'info');
+            
+            // Add event listeners
+            document.getElementById('test-latest-btn').addEventListener('click', testLatest);
+            document.getElementById('test-prices-btn').addEventListener('click', testPrices);
+            document.getElementById('test-both-btn').addEventListener('click', testBoth);
+            
+            testBoth();
+        };
+    </script>
+</body>
+</html>
