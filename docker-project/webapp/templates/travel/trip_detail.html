@@ -2542,8 +2542,7 @@ async function togglePackingItem(itemId) {
         
         const data = await response.json();
         if (data.success) {
-            packingLoaded = false;
-            loadPackingList();
+            loadPackingList(true);
         }
     } catch (error) {
         console.error('Error toggling packing item:', error);
@@ -2591,8 +2590,7 @@ async function savePackingItem() {
             
             // Reload packing list
             setTimeout(() => {
-                packingLoaded = false;
-                loadPackingList();
+                loadPackingList(true);
             }, 300);
         } else {
             showToast(result.error || 'Failed to save item', 'error');
