@@ -344,12 +344,6 @@
             {% block content %}{% endblock %}
         </div>
     </main>
-
-    <footer>
-        <div class="{% if request.endpoint in ['weather', 'stocks_dashboard', 'pid_demo'] %}container-fluid{% else %}custom-container{% endif %}">
-            <p>&copy; 2025 Docker Web App. All rights reserved.</p>
-        </div>
-    </footer>
     
     <!-- jQuery (for Bootstrap JavaScript components) -->
     <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>

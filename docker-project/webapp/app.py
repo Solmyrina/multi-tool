@@ -3032,6 +3032,152 @@ def search_cities():
         print(f"Search error for '{query}': {str(e)}")
         return jsonify({'error': f'Search error: {str(e)}'}), 500
 
+@app.route('/weather/api/search-locations')
+@login_required
+def search_locations():
+    """Search for any location (addresses, POIs, landmarks) using OpenStreetMap Nominatim API
+    This is more permissive than search-cities and includes hotels, attractions, streets, etc."""
+    try:
+        query = request.args.get('q', '').strip()
+        if len(query) < 3:
+            return jsonify({'success': True, 'locations': []})
+        
+        # Use OpenStreetMap Nominatim API for geocoding
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            'q': query,
+            'format': 'json',
+            'limit': 12,
+            'addressdetails': 1,
+            'extratags': 1
+        }
+        headers = {
+            'User-Agent': 'DockerWebApp/1.0 (contact@example.com)'
+        }
+        
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        locations = []
+        
+        for item in data:
+            address = item.get('address', {})
+            place_type = item.get('type', '').lower()
+            place_class = item.get('class', '').lower()
+            display_name = item.get('display_name', '')
+            
+            # Extract location details with fallbacks
+            name = item.get('name', '')
+            
+            # Try to get city/town from address
+            city_name = (address.get('city') or 
+                        address.get('town') or 
+                        address.get('village') or 
+                        address.get('hamlet') or
+                        address.get('suburb') or
+                        address.get('municipality') or
+                        address.get('county') or
+                        '')
+            
+            country = address.get('country', '')
+            state = address.get('state', '') or address.get('region', '')
+            
+            # Get specific address components
+            road = address.get('road', '') or address.get('street', '')
+            house_number = address.get('house_number', '')
+            postcode = address.get('postcode', '')
+            
+            # Build a readable address string
+            address_parts = []
+            if house_number and road:
+                address_parts.append(f"{house_number} {road}")
+            elif road:
+                address_parts.append(road)
+            
+            if name and name != city_name:
+                address_parts.insert(0, name)
+            
+            if city_name:
+                address_parts.append(city_name)
+            if state and state != city_name:
+                address_parts.append(state)
+            if country:
+                address_parts.append(country)
+            
+            full_address = ', '.join(filter(None, address_parts))
+            
+            # Create location type label
+            type_label = ''
+            if place_class == 'tourism':
+                type_label = '🏛️ ' + place_type.replace('_', ' ').title()
+            elif place_class == 'amenity':
+                type_label = '🏨 ' + place_type.replace('_', ' ').title()
+            elif place_class == 'place':
+                type_label = '🏙️ ' + place_type.replace('_', ' ').title()
+            elif place_class == 'highway':
+                type_label = '🛣️ ' + place_type.replace('_', ' ').title()
+            elif place_class == 'building':
+                type_label = '🏢 ' + place_type.replace('_', ' ').title()
+            else:
+                type_label = place_type.replace('_', ' ').title()
+            
+            location_data = {
+                'name': name or city_name,
+                'city': city_name,
+                'country': country,
+                'state': state,
+                'road': road,
+                'house_number': house_number,
+                'postcode': postcode,
+                'full_address': full_address or display_name,
+                'type': type_label,
+                'place_class': place_class,
+                'place_type': place_type,
+                'latitude': float(item['lat']),
+                'longitude': float(item['lon']),
+                'display_name': display_name
+            }
+            locations.append(location_data)
+        
+        result = {
+            'success': True,
+            'locations': locations[:10]  # Limit to 10 suggestions
+        }
+        print(f"Returning {len(result['locations'])} locations for '{query}'")
+        return jsonify(result)
+        
+    except requests.RequestException as e:
+        print(f"API request error for '{query}': {str(e)}")
+        return jsonify({'error': f'Search service unavailable: {str(e)}'}), 500
+    except Exception as e:
+        print(f"Search error for '{query}': {str(e)}")
+        return jsonify({'error': f'Search error: {str(e)}'}), 500
+
+@app.route('/weather/api/forecast-by-coords')
+@login_required
+def get_weather_by_coords():
+    """Get weather forecast for specific coordinates (for trip weather widget)"""
+    try:
+        lat = request.args.get('lat', type=float)
+        lon = request.args.get('lon', type=float)
+        
+        if lat is None or lon is None:
+            return jsonify({'success': False, 'error': 'Latitude and longitude are required'}), 400
+        
+        # Fetch weather data from yr.no API
+        weather_info = fetch_weather_data(lat, lon)
+        
+        return jsonify({
+            'success': True,
+            'weather': weather_info
+        })
+        
+    except Exception as e:
+        print(f"Weather forecast error: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to fetch weather: {str(e)}'}), 500
+
 # Widget API endpoints for dashboard
 @app.route('/widgets/stock/<symbol>')
 @login_required
@@ -5133,6 +5279,101 @@ def api_packing_toggle(item_id):
         return Response(response.content, status=response.status_code, content_type='application/json')
     except Exception as e:
         app.logger.error(f"Error proxying packing toggle API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== TRIP SHARING API PROXY ROUTES ====================
+
+@app.route('/api/travel/trips/<int:trip_id>/shares', methods=['GET'])
+@login_required
+def api_get_trip_shares(trip_id):
+    """Proxy get trip shares API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/shares'
+        response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying get trip shares API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/shares', methods=['POST'])
+@login_required
+def api_share_trip(trip_id):
+    """Proxy share trip API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/shares'
+        response = requests.post(
+            url,
+            json=request.get_json(),
+            cookies={'user_id': str(current_user.id)}
+        )
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying share trip API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/shares/<int:share_id>', methods=['PUT'])
+@login_required
+def api_update_trip_share(trip_id, share_id):
+    """Proxy update trip share permissions API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/shares/{share_id}'
+        response = requests.put(
+            url,
+            json=request.get_json(),
+            cookies={'user_id': str(current_user.id)}
+        )
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying update trip share API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/shares/<int:share_id>', methods=['DELETE'])
+@login_required
+def api_delete_trip_share(trip_id, share_id):
+    """Proxy delete trip share API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/shares/{share_id}'
+        response = requests.delete(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying delete trip share API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/trips/<int:trip_id>/permissions', methods=['GET'])
+@login_required
+def api_get_trip_permissions(trip_id):
+    """Proxy get trip permissions API endpoint"""
+    try:
+        url = f'http://api:8000/api/travel/trips/{trip_id}/permissions'
+        response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying get trip permissions API: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/travel/users/search', methods=['GET'])
+@login_required
+def api_search_users():
+    """Proxy search users API endpoint"""
+    try:
+        query = request.args.get('q', '')
+        url = f'http://api:8000/api/travel/users/search?q={query}'
+        response = requests.get(url, cookies={'user_id': str(current_user.id)})
+        
+        return Response(response.content, status=response.status_code, content_type='application/json')
+    except Exception as e:
+        app.logger.error(f"Error proxying search users API: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

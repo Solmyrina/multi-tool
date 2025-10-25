@@ -7,12 +7,43 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
 <!-- Custom Timeline Styles -->
 <style>
+    /* Remove the problematic container-fluid height rule */
+    
     #tripMap {
-        height: 600px;
+        height: 100%;
         width: 100%;
         border-radius: 6px;
+    }
+    
+    /* Make map card stretch to full available height */
+    #overview {
+        min-height: 50vh;
+        max-height: 70vh;
+    }
+    
+    #overview .row.g-2 {
+        height: 100%;
+    }
+    
+    #overview .col-lg-9 .card {
+        height: 100%;
+    }
+    
+    #overview .col-lg-9 .card-body {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Sidebar should scroll if content is too long */
+    #overview .col-lg-3 {
+        max-height: 100%;
+        overflow-y: auto;
     }
     
     /* Custom Timeline Styles */
@@ -238,11 +269,38 @@
     }
     
     .nav-tabs {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.1rem;
     }
 
     /* Map still prominent but slightly tighter radius */
     #tripMap { border-radius: 6px; }
+
+    /* Location autocomplete suggestions dropdown */
+    .suggestions-dropdown {
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    }
+    
+    .suggestion-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+        transition: all 0.15s ease-in-out;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #e7f3ff;
+        cursor: pointer;
+        padding-left: 1rem;
+    }
+    
+    .suggestion-item .fw-bold {
+        color: #0d6efd;
+        margin-bottom: 0.25rem;
+    }
 
 </style>
 {% endblock %}
@@ -259,7 +317,6 @@
                         <li class="breadcrumb-item active">{{ trip.name }}</li>
                     </ol>
                 </nav>
-                <h1 class="h3 mb-2">{{ trip.name }}</h1>
                 
                 <div class="d-flex flex-wrap gap-3">
                     <div>
@@ -290,7 +347,10 @@
             </div>
             
             <div class="col-md-4 text-end">
-                <div class="d-flex flex-column gap-2">
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button class="btn btn-primary btn-sm" onclick="openShareModal()">
+                        <i class="fas fa-share-alt"></i> Share Trip
+                    </button>
                     <a href="{{ url_for('export_calendar', trip_id=trip.id) }}" 
                        class="btn btn-success btn-sm"
                        download="{{ trip.name }}.ics">
@@ -308,7 +368,7 @@
     </div>
 
     <!-- Tab Navigation -->
-    <ul class="nav nav-tabs mb-4" id="tripTabs" role="tablist">
+    <ul class="nav nav-tabs" id="tripTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button">
                 <i class="fas fa-th-large"></i> Overview
@@ -330,13 +390,19 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget" type="button">
+            <!-- Budget tab is hidden by default to prevent flash of content before permissions are applied -->
+            <button class="nav-link" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget" type="button" style="display:none" data-perm="budget">
                 <i class="fas fa-wallet"></i> Budget
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="packing-tab" data-bs-toggle="tab" data-bs-target="#packing" type="button">
                 <i class="fas fa-suitcase"></i> Packing List
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar" type="button">
+                <i class="fas fa-calendar-alt"></i> Calendar
             </button>
         </li>
     </ul>
@@ -396,7 +462,7 @@
 
                     <!-- Budget Summary -->
                     {% if trip.budget_total %}
-                    <div class="card">
+                    <div class="card budget-field">
                         <div class="card-header bg-warning text-dark">
                             <h6 class="mb-0"><i class="fas fa-dollar-sign"></i> Budget Overview</h6>
                         </div>
@@ -434,15 +500,9 @@
 
         <!-- Timeline Tab (Gantt Chart) -->
         <div class="tab-pane fade" id="timeline" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-gantt"></i> Trip Timeline</h5>
-                </div>
-                <div class="card-body">
-                    <div id="ganttChart" style="min-height: 500px;">
-                        <!-- Gantt chart will be rendered here -->
-                    </div>
-                </div>
+            <h5 class="mb-3"><i class="fas fa-chart-gantt"></i> Trip Timeline</h5>
+            <div id="ganttChart" style="min-height: 500px;">
+                <!-- Gantt chart will be rendered here -->
             </div>
         </div>
 
@@ -484,8 +544,8 @@
             </div>
         </div>
 
-        <!-- Budget Tab -->
-        <div class="tab-pane fade" id="budget" role="tabpanel">
+    <!-- Budget Tab (hidden by default; shown by JS when permitted) -->
+    <div class="tab-pane fade" id="budget" role="tabpanel" style="display:none">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4>Budget & Expenses</h4>
                 <button class="btn btn-warning" onclick="addExpense()">
@@ -615,8 +675,38 @@
                 </div>
             </div>
         </div>
-                        <span class="visually-hidden">Loading packing list...</span>
+
+        <!-- Calendar Tab -->
+        <div class="tab-pane fade" id="calendar" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>Trip Calendar</h4>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="calendarPrevWeek()">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="calendarToday()">
+                        <i class="fas fa-calendar-day"></i> Today
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="calendarNextWeek()">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Week Overview -->
+            <div class="card mb-3">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0" id="calendarWeekRange">Loading...</h5>
+                        <small class="text-muted" id="calendarTripInfo"></small>
                     </div>
+                </div>
+            </div>
+
+            <!-- Calendar View -->
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div id='calendar'></div>
                 </div>
             </div>
         </div>
@@ -705,11 +795,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="activityLatitude" class="form-label">Latitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
-                            <input type="number" step="0.000001" class="form-control" id="activityLatitude" name="latitude" placeholder="48.8566">
+                            <input type="number" step="any" min="-90" max="90" class="form-control" id="activityLatitude" name="latitude" placeholder="48.8566">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="activityLongitude" class="form-label">Longitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
-                            <input type="number" step="0.000001" class="form-control" id="activityLongitude" name="longitude" placeholder="2.3522">
+                            <input type="number" step="any" min="-180" max="180" class="form-control" id="activityLongitude" name="longitude" placeholder="2.3522">
                         </div>
                     </div>
 
@@ -724,7 +814,7 @@
                                 <option value="must_see">Must See</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-4 mb-3 budget-field">
                             <label for="activityCost" class="form-label">Estimated Cost</label>
                             <input type="number" step="0.01" class="form-control" id="activityCost" name="cost" placeholder="0.00">
                         </div>
@@ -798,11 +888,11 @@
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <label for="accommodationLatitude" class="form-label">Latitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
-                            <input type="number" step="0.000001" class="form-control" id="accommodationLatitude" name="latitude">
+                            <input type="number" step="any" min="-90" max="90" class="form-control" id="accommodationLatitude" name="latitude">
                         </div>
                         <div class="col-md-3 mb-3">
                             <label for="accommodationLongitude" class="form-label">Longitude <i class="fas fa-cloud text-info" title="Will be added to weather tracking"></i></label>
-                            <input type="number" step="0.000001" class="form-control" id="accommodationLongitude" name="longitude">
+                            <input type="number" step="any" min="-180" max="180" class="form-control" id="accommodationLongitude" name="longitude">
                         </div>
                         <div class="col-md-3 mb-3">
                             <label for="accommodationPhone" class="form-label">Phone</label>
@@ -836,7 +926,7 @@
                         </div>
                     </div>
 
-                    <div class="row">
+                    <div class="row budget-field">
                         <div class="col-md-6 mb-3">
                             <label for="accommodationCost" class="form-label">Total Cost</label>
                             <input type="number" step="0.01" class="form-control" id="accommodationCost" name="total_cost" placeholder="0.00">
@@ -1000,6 +1090,197 @@
     </div>
 </div>
 
+<!-- Share Trip Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-share-alt"></i> Share Trip</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Add User Section -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-user-plus"></i> Add User</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="userSearchInput" 
+                                       placeholder="Search by email or username..." autocomplete="off">
+                                <div id="userSearchResults" class="list-group mt-2" style="display: none;"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="defaultRole">
+                                    <option value="viewer">Viewer (Read Only)</option>
+                                    <option value="editor" selected>Editor</option>
+                                    <option value="admin">Admin (Full Access)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Shares -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-users"></i> Shared With</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="sharesList">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Permission Editor Modal -->
+<div class="modal fade" id="permissionModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-key"></i> Edit Permissions</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editShareId">
+                <p class="mb-3">
+                    <strong>User:</strong> <span id="editUserEmail"></span>
+                </p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-center">
+                                    <i class="fas fa-eye"></i> Read
+                                </th>
+                                <th class="text-center">
+                                    <i class="fas fa-edit"></i> Write
+                                </th>
+                                <th class="text-center">
+                                    <i class="fas fa-trash"></i> Delete
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="permissionsTable">
+                            <!-- Budget -->
+                            <tr>
+                                <td><i class="fas fa-wallet text-warning"></i> Budget</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="budget" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="budget" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="budget" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Accommodations -->
+                            <tr>
+                                <td><i class="fas fa-hotel text-info"></i> Accommodations</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="accommodations" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="accommodations" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="accommodations" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Activities -->
+                            <tr>
+                                <td><i class="fas fa-map-marked-alt text-success"></i> Activities</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="activities" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="activities" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="activities" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Packing List -->
+                            <tr>
+                                <td><i class="fas fa-suitcase text-primary"></i> Packing List</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="packing_list" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="packing_list" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="packing_list" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Timeline -->
+                            <tr>
+                                <td><i class="fas fa-chart-gantt text-secondary"></i> Timeline</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="timeline" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="timeline" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="timeline" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Routes -->
+                            <tr>
+                                <td><i class="fas fa-route text-danger"></i> Routes</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="routes" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="routes" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="routes" data-type="delete">
+                                </td>
+                            </tr>
+                            <!-- Documents -->
+                            <tr>
+                                <td><i class="fas fa-file text-muted"></i> Documents</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="documents" data-type="read">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="documents" data-type="write">
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" data-category="documents" data-type="delete">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> If budget access is disabled (no Read permission), 
+                    the user will not see any cost information anywhere in the trip.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePermissions()">
+                    <i class="fas fa-save"></i> Save Permissions
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_css %}
@@ -1028,10 +1309,287 @@
         font-size: 2rem;
         font-weight: bold;
     }
+    
+    /* Calendar Styles - Outlook-like layout */
+    .calendar-week-container {
+        overflow: hidden !important;
+        background: white !important;
+        height: 100% !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    .calendar-week-grid {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        height: 100% !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        background: white;
+        position: relative;
+    }
+    
+    .calendar-time-gutter {
+        flex: 0 0 70px !important;
+        width: 70px !important;
+        height: 100% !important;
+        background: white;
+        border-right: 2px solid #dee2e6;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .calendar-time-gutter .calendar-day-header {
+        height: 70px;
+        border-bottom: 2px solid #dee2e6;
+        background: white;
+        position: sticky;
+        top: 0;
+        z-index: 31;
+        flex-shrink: 0;
+    }
+    
+    .calendar-time-gutter .calendar-time-slot {
+        height: 60px;
+        border-bottom: 1px solid #f5f5f5;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .calendar-time-gutter .calendar-time-slot.hour-mark {
+        border-bottom-color: #e0e0e0;
+    }
+    
+    .calendar-days-container {
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        background: white;
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+    
+    .calendar-day-column {
+        flex: 1 1 auto !important;
+        border-right: 1px solid #e0e0e0;
+        position: relative !important;
+        min-width: 140px;
+        display: flex !important;
+        flex-direction: column;
+        overflow: hidden !important;
+    }
+    
+    .calendar-day-column:last-child {
+        border-right: none;
+    }
+    
+    .calendar-day-column.today {
+        background: #f0f7ff;
+    }
+    
+    .calendar-day-column.weekend {
+        background: #fafafa;
+    }
+    
+    .calendar-day-header {
+        position: sticky;
+        top: 0;
+        z-index: 25;
+        background: white;
+        border-bottom: 2px solid #dee2e6;
+        padding: 10px 8px;
+        text-align: center;
+        font-weight: 600;
+        height: 70px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        flex-shrink: 0;
+    }
+    
+    .calendar-day-column.today .calendar-day-header {
+        background: #0d6efd;
+        color: white;
+    }
+    
+    .calendar-day-name {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+        margin-bottom: 4px;
+    }
+    
+    .calendar-day-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .calendar-events-area {
+        position: relative !important;
+        flex: 1 1 auto !important;
+        height: 1440px !important;
+        background: 
+            repeating-linear-gradient(
+                to bottom,
+                transparent 0px,
+                transparent 59px,
+                #f0f0f0 59px,
+                #f0f0f0 60px
+            );
+        width: 100% !important;
+        overflow: hidden !important;
+        min-height: 1440px;
+    }
+    
+    .calendar-time-slot {
+        height: 60px;
+        border-bottom: 1px solid #f5f5f5;
+        position: relative;
+        flex-shrink: 0;
+    }
+    
+    .calendar-time-slot.hour-mark {
+        border-bottom-color: #e0e0e0;
+    }
+    
+    .calendar-event {
+        position: absolute !important;
+        left: 2px !important;
+        right: 2px !important;
+        width: calc(100% - 4px) !important;
+        border-radius: 4px;
+        padding: 4px 6px;
+        cursor: pointer;
+        overflow: hidden;
+        border-left: 4px solid;
+        font-size: 0.7rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: all 0.2s;
+        user-select: none;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: flex-start;
+        font-weight: 600;
+    }
+    
+    .calendar-event:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transform: translateY(-2px);
+        z-index: 100 !important;
+    }
+    
+    .calendar-event.dragging {
+        opacity: 0.7;
+        cursor: grabbing;
+        z-index: 1000 !important;
+    }
+    
+    /* Event type colors - Outlook style */
+    .calendar-event.activity-sightseeing {
+        background: #bbdefb;
+        border-left-color: #0d47a1;
+        color: #0d47a1;
+    }
+    
+    .calendar-event.activity-dining {
+        background: #ffe0b2;
+        border-left-color: #e65100;
+        color: #e65100;
+    }
+    
+    .calendar-event.activity-transport {
+        background: #e1bee7;
+        border-left-color: #4a148c;
+        color: #4a148c;
+    }
+    
+    .calendar-event.activity-entertainment {
+        background: #f8bbd0;
+        border-left-color: #880e4f;
+        color: #880e4f;
+    }
+    
+    .calendar-event.activity-shopping {
+        background: #c8e6c9;
+        border-left-color: #1b5e20;
+        color: #1b5e20;
+    }
+    
+    .calendar-event.activity-other {
+        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+        border-left-color: #616161;
+        color: #424242;
+    }
+    
+    .calendar-event.accommodation {
+        background: #ffecb3;
+        border-left-color: #f57f17;
+        color: #f57f17;
+    }
+    
+    .calendar-drop-zone {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: rgba(13, 110, 253, 0.4);
+        border-radius: 2px;
+        display: none;
+        z-index: 999;
+    }
+    
+    .calendar-drop-zone.active {
+        display: block;
+        background: rgba(13, 110, 253, 0.7);
+        height: 4px;
+    }
+    
+    .calendar-current-time-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #dc3545;
+        z-index: 50;
+        pointer-events: none;
+    }
+    
+    .calendar-current-time-line::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: -4px;
+        width: 10px;
+        height: 10px;
+        background: #dc3545;
+        border-radius: 50%;
+    }
 </style>
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
 <script>
 const tripId = {{ trip.id }};
 const tripCity = "{{ trip.destination_city or '' }}";
@@ -1039,10 +1597,292 @@ const tripCountry = "{{ trip.destination_country or '' }}";
 const tripStartDate = "{{ trip.start_date }}";
 const tripEndDate = "{{ trip.end_date }}";
 
-// Load weather widget on page load
+// Global permissions object
+let userPermissions = null;
+let isOwner = false;
+
+// Initialize FullCalendar
 document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '00:00:00',
+        slotMaxTime: '24:00:00',
+        height: 'auto',
+        expandRows: true,
+        events: async function(info, successCallback, failureCallback) {
+            try {
+                const [activitiesRes, accommodationsRes] = await Promise.all([
+                    fetch(`/api/travel/trips/${tripId}/activities`, { credentials: 'include' }),
+                    fetch(`/api/travel/trips/${tripId}/accommodations`, { credentials: 'include' })
+                ]);
+                
+                const activitiesData = await activitiesRes.json();
+                const accommodationsData = await accommodationsRes.json();
+                
+                const events = [];
+                
+                // Add activities
+                if (activitiesData.success && activitiesData.activities) {
+                    activitiesData.activities.forEach(activity => {
+                        const start = activity.start_datetime || `${activity.start_date}T${activity.start_time || '09:00'}`;
+                        const end = activity.end_datetime || `${activity.end_date}T${activity.end_time || '10:00'}`;
+                        
+                        const categoryColors = {
+                            'sightseeing': '#1976d2',
+                            'dining': '#f57c00',
+                            'transport': '#7b1fa2',
+                            'entertainment': '#c2185b',
+                            'shopping': '#388e3c',
+                            'other': '#616161'
+                        };
+                        
+                        events.push({
+                            id: `activity-${activity.id}`,
+                            title: activity.name,
+                            start: start,
+                            end: end,
+                            backgroundColor: categoryColors[activity.category] || '#616161',
+                            borderColor: categoryColors[activity.category] || '#616161',
+                            extendedProps: {
+                                type: 'activity',
+                                activityId: activity.id,
+                                location: activity.location_name
+                            }
+                        });
+                    });
+                }
+                
+                // Add accommodations
+                if (accommodationsData.success && accommodationsData.accommodations) {
+                    accommodationsData.accommodations.forEach(accommodation => {
+                        const checkIn = `${accommodation.check_in_date}T${accommodation.check_in_time || '15:00'}`;
+                        const checkOut = `${accommodation.check_out_date}T${accommodation.check_out_time || '11:00'}`;
+                        
+                        events.push({
+                            id: `accommodation-${accommodation.id}`,
+                            title: accommodation.name,
+                            start: checkIn,
+                            end: checkOut,
+                            backgroundColor: '#f57f17',
+                            borderColor: '#f57f17',
+                            extendedProps: {
+                                type: 'accommodation',
+                                accommodationId: accommodation.id,
+                                location: accommodation.address || accommodation.city
+                            }
+                        });
+                    });
+                }
+                
+                successCallback(events);
+            } catch (error) {
+                console.error('Error loading calendar events:', error);
+                failureCallback(error);
+            }
+        },
+        eventClick: function(info) {
+            const props = info.event.extendedProps;
+            if (props.type === 'activity') {
+                editActivity(props.activityId);
+            } else {
+                editAccommodation(props.accommodationId);
+            }
+        },
+        editable: true,
+        eventDrop: function(info) {
+            updateEventTime(info.event);
+        },
+        eventResize: function(info) {
+            updateEventTime(info.event);
+        }
+    });
+    
+    calendar.render();
+    
+    // Store calendar reference globally
+    window.tripCalendar = calendar;
+});
+
+async function updateEventTime(event) {
+    const props = event.extendedProps;
+    const eventType = props.type;
+    const eventId = eventType === 'activity' ? props.activityId : props.accommodationId;
+    
+    try {
+        const endpoint = eventType === 'activity' 
+            ? `/api/travel/trips/${tripId}/activities/${eventId}`
+            : `/api/travel/trips/${tripId}/accommodations/${eventId}`;
+        
+        const updateData = {};
+        const startDate = event.start.toISOString().split('T')[0];
+        const startTime = event.start.toTimeString().substring(0, 5);
+        const endDate = event.end.toISOString().split('T')[0];
+        const endTime = event.end.toTimeString().substring(0, 5);
+        
+        if (eventType === 'activity') {
+            updateData.start_date = startDate;
+            updateData.start_time = startTime;
+            updateData.end_date = endDate;
+            updateData.end_time = endTime;
+        } else {
+            updateData.check_in_date = startDate;
+            updateData.check_in_time = startTime;
+            updateData.check_out_date = endDate;
+            updateData.check_out_time = endTime;
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(updateData)
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('Event updated successfully', 'success');
+            window.tripCalendar.refetchEvents();
+        } else {
+            showToast(data.error || 'Failed to update event', 'error');
+            event.revert();
+        }
+    } catch (error) {
+        console.error('Error updating event:', error);
+        showToast('Failed to update event', 'error');
+        event.revert();
+    }
+}
+
+// Load weather widget and permissions on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadTripPermissions();
     loadWeatherWidget();
 });
+
+// Load trip permissions and apply UI restrictions
+async function loadTripPermissions() {
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            userPermissions = data.permissions || {};
+            isOwner = data.trip.is_owner || false;
+            
+            // Apply permission-based UI controls
+                applyPermissionControls();
+
+                // Show or hide budget tab/content based on permission (prevent flash by default hiding)
+                const budgetAllowed = hasPermission('budget', 'read') || isOwner;
+                const budgetTabBtn = document.getElementById('budget-tab');
+                const budgetTabContent = document.getElementById('budget');
+                if (budgetTabBtn) budgetTabBtn.style.display = budgetAllowed ? '' : 'none';
+                if (budgetTabContent) budgetTabContent.style.display = budgetAllowed ? '' : 'none';
+
+                // If no budget permission, hide budget-specific fields as a fallback
+                if (!budgetAllowed) {
+                    hideBudgetFields();
+                }
+        }
+    } catch (error) {
+        console.error('Error loading permissions:', error);
+    }
+}
+
+// Check if user has specific permission
+function hasPermission(category, action) {
+    if (isOwner) return true;
+    if (!userPermissions || !userPermissions[category]) return false;
+    
+    const perm = userPermissions[category];
+    if (action === 'read') return perm.can_read;
+    if (action === 'write') return perm.can_write;
+    if (action === 'delete') return perm.can_delete;
+    return false;
+}
+
+// Apply permission controls to UI elements
+function applyPermissionControls() {
+    // Trip-level controls (owner only)
+    if (!isOwner) {
+        // Hide/disable trip edit and delete buttons
+        const editTripBtn = document.querySelector('[onclick="editTrip()"]');
+        const deleteTripBtn = document.querySelector('[onclick="deleteTrip()"]');
+        if (editTripBtn) editTripBtn.style.display = 'none';
+        if (deleteTripBtn) deleteTripBtn.style.display = 'none';
+    }
+    
+    // Activities controls
+    if (!hasPermission('activities', 'write')) {
+        const addActivityBtn = document.querySelector('[onclick="openActivityModal()"]');
+        if (addActivityBtn) addActivityBtn.style.display = 'none';
+    }
+    
+    // Accommodations controls
+    if (!hasPermission('accommodations', 'write')) {
+        const addAccommodationBtn = document.querySelector('[onclick="openAccommodationModal()"]');
+        if (addAccommodationBtn) addAccommodationBtn.style.display = 'none';
+    }
+    
+    // Budget/Expenses controls
+    if (!hasPermission('budget', 'write')) {
+        const addExpenseBtn = document.querySelector('[onclick="openExpenseModal()"]');
+        if (addExpenseBtn) addExpenseBtn.style.display = 'none';
+    }
+    
+    // Packing list controls
+    if (!hasPermission('packing_list', 'write')) {
+        const addPackingBtn = document.querySelector('[onclick="openPackingModal()"]');
+        if (addPackingBtn) addPackingBtn.style.display = 'none';
+    }
+    
+    // Routes controls
+    if (!hasPermission('routes', 'write')) {
+        const addRouteBtn = document.querySelector('[onclick="openRouteModal()"]');
+        if (addRouteBtn) addRouteBtn.style.display = 'none';
+    }
+}
+
+// Hide all budget-related fields
+function hideBudgetFields() {
+    // Hide all elements with budget-field class
+    document.querySelectorAll('.budget-field').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Hide cost displays in activities, accommodations, routes
+    document.querySelectorAll('.activity-cost, .cost-display, [data-field="cost"], .accommodation-cost, .route-cost').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Hide budget tab
+    const budgetTab = document.querySelector('#budget-tab');
+    if (budgetTab) {
+        budgetTab.closest('li').style.display = 'none';
+    }
+    
+    // Hide the budget tab content
+    const budgetTabContent = document.querySelector('#budget');
+    if (budgetTabContent) {
+        budgetTabContent.style.display = 'none';
+    }
+    
+    // Hide expense-related elements
+    document.querySelectorAll('.expense-amount, .budget-summary, .total-cost, .total-spent').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    // Hide budget/cost columns in tables
+    document.querySelectorAll('th:contains("Cost"), th:contains("Price"), th:contains("Budget")').forEach(el => {
+        el.style.display = 'none';
+    });
+}
 
 // Load weather widget
 async function loadWeatherWidget() {
@@ -1056,16 +1896,27 @@ async function loadWeatherWidget() {
     }
     
     try {
-        // Search for city to get weather data
-        const response = await fetch(`/weather/api/search-cities?q=${encodeURIComponent(tripCity + ', ' + tripCountry)}`);
-        const data = await response.json();
+        // First, search for city to get coordinates
+        const searchResponse = await fetch(`/weather/api/search-cities?q=${encodeURIComponent(tripCity + ', ' + tripCountry)}`);
+        const searchData = await searchResponse.json();
         
-        if (data && data.length > 0) {
-            const cityData = data[0];
-            displayWeather(cityData);
+        if (searchData.success && searchData.cities && searchData.cities.length > 0) {
+            const cityInfo = searchData.cities[0];
+            
+            // Now fetch actual weather data using coordinates
+            const weatherResponse = await fetch(`/weather/api/forecast-by-coords?lat=${cityInfo.latitude}&lon=${cityInfo.longitude}`);
+            const weatherData = await weatherResponse.json();
+            
+            if (weatherData.success) {
+                displayWeather(weatherData.weather, cityInfo);
+            } else {
+                weatherWidget.innerHTML = `
+                    <p class="text-muted"><i class="fas fa-cloud"></i> Weather data not available</p>
+                `;
+            }
         } else {
             weatherWidget.innerHTML = `
-                <p class="text-muted"><i class="fas fa-cloud"></i> Weather data not available</p>
+                <p class="text-muted"><i class="fas fa-cloud"></i> City not found</p>
             `;
         }
     } catch (error) {
@@ -1076,7 +1927,7 @@ async function loadWeatherWidget() {
     }
 }
 
-function displayWeather(cityData) {
+function displayWeather(weatherData, cityInfo) {
     const weatherWidget = document.getElementById('weatherWidget');
     
     // Calculate days until trip
@@ -1084,20 +1935,43 @@ function displayWeather(cityData) {
     const startDate = new Date(tripStartDate);
     const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
     
-    const temp = cityData.temp || cityData.temperature || '--';
-    const description = cityData.description || cityData.weather || 'N/A';
-    const humidity = cityData.humidity || '--';
-    const windSpeed = cityData.wind_speed || '--';
+    // Extract weather data from yr.no API response
+    const temp = weatherData.temperature !== undefined ? Math.round(weatherData.temperature) : '--';
+    const humidity = weatherData.humidity !== undefined ? Math.round(weatherData.humidity) : '--';
+    const windSpeed = weatherData.wind_speed !== undefined ? weatherData.wind_speed.toFixed(1) : '--';
+    const symbol = weatherData.symbol || 'unknown';
     
+    // Map yr.no weather symbols to descriptive text
+    let description = 'N/A';
     let weatherIcon = 'fa-cloud';
-    if (description.toLowerCase().includes('sun') || description.toLowerCase().includes('clear')) {
+    
+    if (symbol.includes('clearsky')) {
+        description = 'Clear sky';
         weatherIcon = 'fa-sun';
-    } else if (description.toLowerCase().includes('rain')) {
-        weatherIcon = 'fa-cloud-rain';
-    } else if (description.toLowerCase().includes('snow')) {
-        weatherIcon = 'fa-snowflake';
-    } else if (description.toLowerCase().includes('cloud')) {
+    } else if (symbol.includes('fair')) {
+        description = 'Fair';
+        weatherIcon = 'fa-cloud-sun';
+    } else if (symbol.includes('partlycloudy')) {
+        description = 'Partly cloudy';
+        weatherIcon = 'fa-cloud-sun';
+    } else if (symbol.includes('cloudy')) {
+        description = 'Cloudy';
         weatherIcon = 'fa-cloud';
+    } else if (symbol.includes('rain') && symbol.includes('thunder')) {
+        description = 'Thunderstorm';
+        weatherIcon = 'fa-cloud-bolt';
+    } else if (symbol.includes('rain')) {
+        description = 'Rain';
+        weatherIcon = 'fa-cloud-rain';
+    } else if (symbol.includes('sleet')) {
+        description = 'Sleet';
+        weatherIcon = 'fa-cloud-meatball';
+    } else if (symbol.includes('snow')) {
+        description = 'Snow';
+        weatherIcon = 'fa-snowflake';
+    } else if (symbol.includes('fog')) {
+        description = 'Fog';
+        weatherIcon = 'fa-smog';
     }
     
     weatherWidget.innerHTML = `
@@ -1105,6 +1979,7 @@ function displayWeather(cityData) {
             <i class="fas ${weatherIcon} fa-3x text-primary mb-2"></i>
             <h3 class="mb-0">${temp}°C</h3>
             <p class="text-muted mb-0">${description}</p>
+            <small class="text-muted">${cityInfo.name}, ${cityInfo.country}</small>
         </div>
         <div class="row text-center">
             <div class="col-6">
@@ -1156,34 +2031,43 @@ function renderActivities(activities) {
         return;
     }
     
-    container.innerHTML = activities.map(activity => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div class="flex-grow-1">
-                        <h5>${activity.name}</h5>
-                        <p class="text-muted mb-2">${activity.description || ''}</p>
-                        <div class="mb-2">
-                            <span class="badge bg-${getCategoryColor(activity.category)}">${activity.category}</span>
-                            <span class="badge bg-${getPriorityColor(activity.priority)}">${activity.priority}</span>
+    // Render as compact list
+    container.innerHTML = `
+        <div class="list-group">
+            ${activities.map(activity => `
+                <div class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${activity.name}</h6>
+                            <p class="mb-1 small text-muted">${activity.description || ''}</p>
+                            <div class="mb-1">
+                                <span class="badge bg-${getCategoryColor(activity.category)} me-1">${activity.category}</span>
+                                <span class="badge bg-${getPriorityColor(activity.priority)}">${activity.priority}</span>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> ${new Date(activity.start_datetime).toLocaleString()}
+                                ${activity.location_name ? `&nbsp;&nbsp;<i class="fas fa-map-marker-alt"></i> ${activity.location_name}` : ''}
+                            </small>
                         </div>
-                        <small class="text-muted">
-                            <i class="fas fa-clock"></i> ${new Date(activity.start_datetime).toLocaleString()}
-                            ${activity.location_name ? `<br><i class="fas fa-map-marker-alt"></i> ${activity.location_name}` : ''}
-                        </small>
-                    </div>
-                    <div class="btn-group-vertical">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editActivity(${activity.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteActivity(${activity.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        ${hasPermission('activities', 'write') || hasPermission('activities', 'delete') ? `
+                        <div class="btn-group ms-2">
+                            ${hasPermission('activities', 'write') ? `
+                            <button class="btn btn-sm btn-outline-primary" onclick="editActivity(${activity.id})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            ` : ''}
+                            ${hasPermission('activities', 'delete') ? `
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteActivity(${activity.id})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
-            </div>
+            `).join('')}
         </div>
-    `).join('');
+    `;
 }
 
 function getCategoryColor(category) {
@@ -1241,25 +2125,33 @@ function renderAccommodations(accommodations) {
         return;
     }
     
-    container.innerHTML = accommodations.map(acc => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <h5><i class="fas fa-hotel"></i> ${acc.name}</h5>
-                    <button class="btn btn-sm btn-outline-primary" onclick="editAccommodation(${acc.id})">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
+    // Check if user has budget permission
+    const hasBudgetPermission = hasPermission('budget', 'read');
+    
+    // Render as compact list
+    container.innerHTML = `
+        <div class="list-group">
+            ${accommodations.map(acc => `
+                <div class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1"><i class="fas fa-hotel"></i> ${acc.name}</h6>
+                            <p class="mb-1 small">
+                                <strong>Check-in:</strong> ${acc.check_in_date} ${acc.check_in_time} &nbsp;&nbsp;
+                                <strong>Check-out:</strong> ${acc.check_out_date} ${acc.check_out_time}
+                            </p>
+                            ${acc.address ? `<p class="mb-1 small text-muted"><i class="fas fa-map-marker-alt"></i> ${acc.address}, ${acc.city}</p>` : ''}
+                            ${hasBudgetPermission && acc.total_cost ? `<p class="mb-0 small"><strong>Cost:</strong> ${acc.total_cost} ${acc.currency}</p>` : ''}
+                            ${acc.confirmation_number ? `<p class="mb-0 small text-muted">Confirmation: ${acc.confirmation_number}</p>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="editAccommodation(${acc.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
                 </div>
-                <p class="mb-2">
-                    <strong>Check-in:</strong> ${acc.check_in_date} ${acc.check_in_time}<br>
-                    <strong>Check-out:</strong> ${acc.check_out_date} ${acc.check_out_time}
-                </p>
-                ${acc.address ? `<p class="text-muted"><i class="fas fa-map-marker-alt"></i> ${acc.address}, ${acc.city}</p>` : ''}
-                ${acc.total_cost ? `<p><strong>Cost:</strong> ${acc.total_cost} ${acc.currency}</p>` : ''}
-                ${acc.confirmation_number ? `<p><small class="text-muted">Confirmation: ${acc.confirmation_number}</small></p>` : ''}
-            </div>
+            `).join('')}
         </div>
-    `).join('');
+    `;
 }
 
 // Tab event listeners
@@ -1332,12 +2224,16 @@ function renderGanttChart(activities, accommodations) {
         current.setDate(current.getDate() + 1);
     }
     
-    // Combine all timeline items
-    const timelineItems = [];
+    // Group timeline items by category
+    const timelineCategories = {
+        'Accommodation': [],
+        'Transport': [],
+        'Activities': []
+    };
     
-    // Add activities
+    // Add activities to appropriate category
     activities.forEach(activity => {
-        timelineItems.push({
+        const item = {
             type: 'activity',
             id: activity.id,
             name: activity.name,
@@ -1345,7 +2241,14 @@ function renderGanttChart(activities, accommodations) {
             end: new Date(activity.end_datetime),
             category: activity.category,
             data: activity
-        });
+        };
+        
+        // Transport category includes transport-related activities
+        if (activity.category === 'transport') {
+            timelineCategories['Transport'].push(item);
+        } else {
+            timelineCategories['Activities'].push(item);
+        }
     });
     
     // Add accommodations as full stay blocks (check-in to check-out)
@@ -1369,7 +2272,7 @@ function renderGanttChart(activities, accommodations) {
             checkOut.setHours(11, 0, 0, 0);
         }
         
-        timelineItems.push({
+        timelineCategories['Accommodation'].push({
             type: 'accommodation',
             id: accommodation.id,
             name: '🏨 ' + accommodation.name,
@@ -1392,47 +2295,55 @@ function renderGanttChart(activities, accommodations) {
 
     // Header with dates (flexible width cells)
     html += '<div class="timeline-header">';
-    html += '<div class="timeline-label">Item</div>';
+    html += '<div class="timeline-label">Category</div>';
     html += '<div style="display: flex; flex: 1;">';
     dates.forEach(date => {
         html += `<div class="timeline-date" style="flex: 1; min-width: ${cellWidth}px;">${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>`;
     });
     html += '</div></div>';
 
-    // Rows for each item
-    timelineItems.forEach(item => {
-        // Calculate position and size in pixels to avoid % rounding mismatches
-        const leftPx = ((item.start - startDate) / totalMs) * totalWidth;
-        const widthPx = ((item.end - item.start) / totalMs) * totalWidth;
-
-        const clampedLeft = Math.max(0, Math.min(totalWidth, leftPx));
-        const clampedWidth = Math.max(4, Math.min(totalWidth - clampedLeft, widthPx));
-
-        const categoryClass = item.type === 'accommodation' ? 'accommodation' : 
-                             item.category ? item.category.toLowerCase() : 'activity';
-
+    // Rows for each category
+    ['Accommodation', 'Transport', 'Activities'].forEach(categoryName => {
+        const items = timelineCategories[categoryName];
+        
         html += '<div class="timeline-row">';
-        html += `<div class="timeline-label">${item.name}</div>`;
+        html += `<div class="timeline-label"><strong>${categoryName}</strong></div>`;
         // Grid uses flex to fill available width
-        html += '<div class="timeline-grid" style="position: relative;">';
+        html += '<div class="timeline-grid" style="position: relative; height: 60px;">';
 
         // Add date cells for visual grid (flexible width)
         dates.forEach(() => {
             html += `<div class="timeline-cell" style="flex: 1; min-width: ${cellWidth}px;"></div>`;
         });
 
-        // Add the timeline block using pixel coordinates with tooltip data
-        const tooltipData = JSON.stringify(item.data).replace(/"/g, '&quot;');
-        html += `<div class="timeline-block timeline-block-${categoryClass}" 
-                      style="left: ${clampedLeft}px; width: ${clampedWidth}px;"
-                      data-type="${item.type}" 
-                      data-id="${item.id}"
-                      data-item='${tooltipData}'
-                      onmouseenter="showTimelineTooltip(event, this)"
-                      onmouseleave="hideTimelineTooltip()"
-                      onclick="handle${item.type === 'activity' ? 'Activity' : 'Accommodation'}Click(${item.id})"
-                      title="">
-                 </div>`;
+        // Add timeline blocks for all items in this category
+        items.forEach((item, index) => {
+            // Calculate position and size in pixels to avoid % rounding mismatches
+            const leftPx = ((item.start - startDate) / totalMs) * totalWidth;
+            const widthPx = ((item.end - item.start) / totalMs) * totalWidth;
+
+            // Round to prevent sub-pixel gaps
+            const clampedLeft = Math.round(Math.max(0, Math.min(totalWidth, leftPx)));
+            const clampedWidth = Math.round(Math.max(4, Math.min(totalWidth - clampedLeft, widthPx)));
+
+            const categoryClass = item.type === 'accommodation' ? 'accommodation' : 
+                                 item.category ? item.category.toLowerCase() : 'activity';
+            
+            // Stack items vertically with offset
+            const topOffset = (index % 3) * 20;
+
+            const tooltipData = JSON.stringify(item.data).replace(/"/g, '&quot;');
+            html += `<div class="timeline-block timeline-block-${categoryClass}" 
+                          style="left: ${clampedLeft}px; width: ${clampedWidth}px; top: ${topOffset}px; height: 16px;"
+                          data-type="${item.type}" 
+                          data-id="${item.id}"
+                          data-item='${tooltipData}'
+                          onmouseenter="showTimelineTooltip(event, this)"
+                          onmouseleave="hideTimelineTooltip()"
+                          onclick="handle${item.type === 'activity' ? 'Activity' : 'Accommodation'}Click(${item.id})"
+                          title="${item.name}">
+                     </div>`;
+        });
 
         html += '</div></div>';
     });
@@ -1825,6 +2736,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize map on page load since overview tab is active by default
     initializeMap();
+    
+    // Fix Leaflet map size after container resizes
+    setTimeout(function() {
+        if (mapInstance) {
+            mapInstance.invalidateSize();
+        }
+    }, 300);
+    
+    // Attach autocompletes for activity and accommodation location fields
+    // For activity: activityLocation serves as both search input and location_name field
+    attachCityAutocomplete('activityLocation', 'activityCity', 'activityCountry', 'activityLatitude', 'activityLongitude', null);
+    // For accommodation: accommodationAddress is the search field, we'll also use it as the address
+    attachCityAutocomplete('accommodationAddress', 'accommodationCity', 'accommodationCountry', 'accommodationLatitude', 'accommodationLongitude', null);
 });
 
 function addActivity() {
@@ -1844,6 +2768,12 @@ function addActivity() {
 }
 
 async function editActivity(id) {
+    // Check permission
+    if (!hasPermission('activities', 'write')) {
+        showToast('No permission to edit activities', 'error');
+        return;
+    }
+    
     try {
         const response = await fetch(`/api/travel/trips/${tripId}/activities/${id}`, {
             credentials: 'include'
@@ -1934,6 +2864,108 @@ async function addLocationToWeather(city, country, latitude, longitude) {
     } catch (error) {
         console.warn('Failed to add location to weather tracking:', error);
         // Don't throw - this is a non-critical feature
+    }
+}
+
+// Generic location autocomplete hookup using the enhanced location search endpoint
+// This supports addresses, POIs, landmarks, hotels, attractions, not just cities
+function attachCityAutocomplete(inputId, cityFieldId, countryFieldId, latFieldId, lonFieldId, locationNameFieldId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    // Create dropdown
+    let dropdown = document.createElement('div');
+    dropdown.className = 'suggestions-dropdown position-absolute bg-white border shadow-sm';
+    dropdown.style.zIndex = 1050;
+    dropdown.style.display = 'none';
+    dropdown.style.maxHeight = '300px';
+    dropdown.style.overflow = 'auto';
+    dropdown.style.width = '100%';
+    dropdown.style.maxWidth = '500px';
+    input.parentNode.style.position = 'relative';
+    input.parentNode.appendChild(dropdown);
+
+    let debounceTimer = null;
+
+    input.addEventListener('input', (e) => {
+        const q = input.value.trim();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        if (q.length < 3) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        debounceTimer = setTimeout(async () => {
+            try {
+                // Use the more permissive location search endpoint
+                const resp = await fetch(`/weather/api/search-locations?q=${encodeURIComponent(q)}`);
+                const json = await resp.json();
+                const locations = (json && json.locations) ? json.locations : [];
+                renderSuggestions(locations);
+            } catch (err) {
+                console.warn('Autocomplete error', err);
+                dropdown.style.display = 'none';
+            }
+        }, 300);
+    });
+
+    input.addEventListener('blur', () => {
+        // Slight delay so click can register
+        setTimeout(() => { dropdown.style.display = 'none'; }, 200);
+    });
+
+    input.addEventListener('focus', (e) => {
+        // Re-show dropdown if we have content
+        if (dropdown.children.length > 0 && input.value.trim().length >= 3) {
+            dropdown.style.display = 'block';
+        }
+    });
+
+    function renderSuggestions(locations) {
+        dropdown.innerHTML = '';
+        if (!locations || locations.length === 0) {
+            dropdown.innerHTML = '<div class="p-2 text-muted small">No results found. Try a more specific address or landmark name.</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+
+        locations.forEach(location => {
+            const item = document.createElement('div');
+            item.className = 'p-2 suggestion-item border-bottom';
+            item.style.cursor = 'pointer';
+            
+            // Create rich display with type icon and full address
+            const nameHtml = location.name ? `<div class="fw-bold">${location.type ? location.type + ' ' : ''}${location.name}</div>` : '';
+            const addressHtml = `<div class="small text-muted">${location.full_address}</div>`;
+            
+            item.innerHTML = nameHtml + addressHtml;
+            
+            item.addEventListener('click', () => {
+                select(location);
+            });
+            dropdown.appendChild(item);
+        });
+        dropdown.style.display = 'block';
+    }
+
+    function select(location) {
+        // Fill the search input with the full address
+        input.value = location.full_address;
+        
+        // Fill location name field if provided (for specific places like "Eiffel Tower")
+        if (locationNameFieldId) {
+            const nameField = document.getElementById(locationNameFieldId);
+            if (nameField) {
+                nameField.value = location.name || location.full_address;
+            }
+        }
+        
+        // Fill city, country, coordinates
+        if (cityFieldId) document.getElementById(cityFieldId).value = location.city || '';
+        if (countryFieldId) document.getElementById(countryFieldId).value = location.country || '';
+        if (latFieldId) document.getElementById(latFieldId).value = location.latitude || '';
+        if (lonFieldId) document.getElementById(lonFieldId).value = location.longitude || '';
+        
+        dropdown.style.display = 'none';
     }
 }
 
@@ -2098,6 +3130,12 @@ function addAccommodation() {
 }
 
 async function editAccommodation(id) {
+    // Check permission
+    if (!hasPermission('accommodations', 'write')) {
+        showToast('No permission to edit accommodations', 'error');
+        return;
+    }
+    
     try {
         const response = await fetch(`/api/travel/trips/${tripId}/accommodations/${id}`, {
             credentials: 'include'
@@ -2260,6 +3298,12 @@ function addPackingItem() {
 }
 
 function deleteActivity(id) {
+    // Check permission
+    if (!hasPermission('activities', 'delete')) {
+        showToast('No permission to delete activities', 'error');
+        return;
+    }
+    
     editActivity(id);
 }
 
@@ -2639,26 +3683,24 @@ function renderPackingList(items) {
         categories[cat].push(item);
     });
     
-    let html = '';
+    let html = '<div class="list-group">';
     Object.entries(categories).forEach(([category, catItems]) => {
         const packedCount = catItems.filter(i => i.is_packed).length;
         const totalCount = catItems.length;
         
+        // Category header as list item
         html += `
-            <div class="card mb-3">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><i class="fas fa-tag"></i> ${category}</h6>
-                        <span class="badge bg-primary">${packedCount} / ${totalCount} packed</span>
-                    </div>
+            <div class="list-group-item bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong><i class="fas fa-tag"></i> ${category}</strong>
+                    <span class="badge bg-primary">${packedCount} / ${totalCount} packed</span>
                 </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
+            </div>
         `;
         
         catItems.forEach(item => {
             html += `
-                <div class="list-group-item px-0">
+                <div class="list-group-item">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" 
                                id="pack-${item.id}" 
@@ -2668,20 +3710,15 @@ function renderPackingList(items) {
                                for="pack-${item.id}">
                             ${item.item_name}
                             ${item.quantity > 1 ? `<span class="badge bg-secondary ms-2">${item.quantity}</span>` : ''}
+                            ${item.notes ? `<br><small class="text-muted">${item.notes}</small>` : ''}
                         </label>
-                        ${item.notes ? `<br><small class="text-muted ms-4">${item.notes}</small>` : ''}
                     </div>
                 </div>
             `;
         });
-        
-        html += `
-                    </div>
-                </div>
-            </div>
-        `;
     });
     
+    html += '</div>';
     container.innerHTML = html;
 }
 
@@ -2750,6 +3787,489 @@ async function savePackingItem() {
     } catch (error) {
         console.error('Error saving packing item:', error);
         showToast('Failed to save item', 'error');
+    }
+}
+
+// =============================================================================
+// TRIP SHARING FUNCTIONS
+// =============================================================================
+
+let shareModal, permissionModal;
+let userSearchTimeout;
+
+function openShareModal() {
+    if (!shareModal) {
+        shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
+    }
+    shareModal.show();
+    loadShares();
+}
+
+async function loadShares() {
+    const container = document.getElementById('sharesList');
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/shares`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.shares && data.shares.length > 0) {
+            container.innerHTML = data.shares.map(share => `
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-user"></i> ${share.username}
+                                </h6>
+                                <small class="text-muted">${share.email}</small>
+                                <div class="mt-1">
+                                    <span class="badge bg-${getRoleBadgeColor(share.role)}">${share.role}</span>
+                                    <small class="text-muted ms-2">
+                                        Shared ${new Date(share.shared_at).toLocaleDateString()}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editPermissions(${share.share_id}, '${share.email}', ${JSON.stringify(share.permissions).replace(/"/g, '&quot;')})">
+                                    <i class="fas fa-key"></i> Permissions
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="revokeAccess(${share.share_id}, '${share.username}')">
+                                    <i class="fas fa-user-times"></i> Revoke
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-users-slash fa-2x mb-2"></i>
+                    <p>This trip hasn't been shared with anyone yet.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading shares:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> Failed to load shares: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function getRoleBadgeColor(role) {
+    const colors = {
+        'viewer': 'secondary',
+        'editor': 'primary',
+        'admin': 'success'
+    };
+    return colors[role] || 'secondary';
+}
+
+// User search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('userSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            clearTimeout(userSearchTimeout);
+            
+            if (query.length < 2) {
+                document.getElementById('userSearchResults').style.display = 'none';
+                return;
+            }
+            
+            userSearchTimeout = setTimeout(() => searchUsers(query), 300);
+        });
+    }
+});
+
+async function searchUsers(query) {
+    const resultsContainer = document.getElementById('userSearchResults');
+    
+    try {
+        const response = await fetch(`/api/travel/users/search?q=${encodeURIComponent(query)}`, {
+            credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success && data.users && data.users.length > 0) {
+            resultsContainer.innerHTML = data.users.map(user => `
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="shareWithUser('${user.email}', '${user.username}')">
+                    <i class="fas fa-user"></i> ${user.username}
+                    <small class="text-muted ms-2">${user.email}</small>
+                </button>
+            `).join('');
+            resultsContainer.style.display = 'block';
+        } else {
+            resultsContainer.innerHTML = `
+                <div class="list-group-item text-muted">
+                    <i class="fas fa-search"></i> No users found
+                </div>
+            `;
+            resultsContainer.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error searching users:', error);
+    }
+}
+
+async function shareWithUser(email, username) {
+    const role = document.getElementById('defaultRole').value;
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/shares`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ email, role })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`Trip shared with ${username}`, 'success');
+            document.getElementById('userSearchInput').value = '';
+            document.getElementById('userSearchResults').style.display = 'none';
+            loadShares();
+        } else {
+            showToast(data.error || 'Failed to share trip', 'error');
+        }
+    } catch (error) {
+        console.error('Error sharing trip:', error);
+        showToast('Failed to share trip', 'error');
+    }
+}
+
+function editPermissions(shareId, email, permissions) {
+    if (!permissionModal) {
+        permissionModal = new bootstrap.Modal(document.getElementById('permissionModal'));
+    }
+    
+    document.getElementById('editShareId').value = shareId;
+    document.getElementById('editUserEmail').textContent = email;
+    
+    // Reset all checkboxes
+    document.querySelectorAll('#permissionsTable input[type="checkbox"]').forEach(cb => cb.checked = false);
+    
+    // Set current permissions
+    if (permissions && Array.isArray(permissions)) {
+        permissions.forEach(perm => {
+            if (perm.category) {
+                const readCb = document.querySelector(`input[data-category="${perm.category}"][data-type="read"]`);
+                const writeCb = document.querySelector(`input[data-category="${perm.category}"][data-type="write"]`);
+                const deleteCb = document.querySelector(`input[data-category="${perm.category}"][data-type="delete"]`);
+                
+                if (readCb) readCb.checked = perm.can_read || false;
+                if (writeCb) writeCb.checked = perm.can_write || false;
+                if (deleteCb) deleteCb.checked = perm.can_delete || false;
+            }
+        });
+    }
+    
+    // Add permission hierarchy enforcement
+    document.querySelectorAll('#permissionsTable input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', enforcePermissionHierarchy);
+    });
+    
+    permissionModal.show();
+}
+
+function enforcePermissionHierarchy(event) {
+    const checkbox = event.target;
+    const category = checkbox.dataset.category;
+    const type = checkbox.dataset.type;
+    
+    const readCb = document.querySelector(`input[data-category="${category}"][data-type="read"]`);
+    const writeCb = document.querySelector(`input[data-category="${category}"][data-type="write"]`);
+    const deleteCb = document.querySelector(`input[data-category="${category}"][data-type="delete"]`);
+    
+    // If write is checked, read must be checked
+    if (type === 'write' && checkbox.checked && readCb) {
+        readCb.checked = true;
+    }
+    
+    // If delete is checked, write and read must be checked
+    if (type === 'delete' && checkbox.checked) {
+        if (writeCb) writeCb.checked = true;
+        if (readCb) readCb.checked = true;
+    }
+    
+    // If read is unchecked, write and delete must be unchecked
+    if (type === 'read' && !checkbox.checked) {
+        if (writeCb) writeCb.checked = false;
+        if (deleteCb) deleteCb.checked = false;
+    }
+    
+    // If write is unchecked, delete must be unchecked
+    if (type === 'write' && !checkbox.checked && deleteCb) {
+        deleteCb.checked = false;
+    }
+}
+
+async function savePermissions() {
+    const shareId = document.getElementById('editShareId').value;
+    const permissions = [];
+    
+    // Collect all permissions
+    const categories = ['budget', 'accommodations', 'activities', 'packing_list', 'timeline', 'routes', 'documents'];
+    
+    categories.forEach(category => {
+        const readCb = document.querySelector(`input[data-category="${category}"][data-type="read"]`);
+        const writeCb = document.querySelector(`input[data-category="${category}"][data-type="write"]`);
+        const deleteCb = document.querySelector(`input[data-category="${category}"][data-type="delete"]`);
+        
+        permissions.push({
+            category: category,
+            can_read: readCb ? readCb.checked : false,
+            can_write: writeCb ? writeCb.checked : false,
+            can_delete: deleteCb ? deleteCb.checked : false
+        });
+    });
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/shares/${shareId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ permissions })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Permissions updated successfully', 'success');
+            permissionModal.hide();
+            loadShares();
+        } else {
+            showToast(data.error || 'Failed to update permissions', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving permissions:', error);
+        showToast('Failed to update permissions', 'error');
+    }
+}
+
+async function revokeAccess(shareId, username) {
+    if (!confirm(`Are you sure you want to revoke ${username}'s access to this trip?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/travel/trips/${tripId}/shares/${shareId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`Access revoked for ${username}`, 'success');
+            loadShares();
+        } else {
+            showToast(data.error || 'Failed to revoke access', 'error');
+        }
+    } catch (error) {
+        console.error('Error revoking access:', error);
+        showToast('Failed to revoke access', 'error');
+    }
+}
+
+// ===== CALENDAR TAB FUNCTIONS =====
+
+let calendarWeekStart = new Date();
+let calendarEvents = [];
+let draggedEvent = null;
+let dragStartY = 0;
+let currentDropZone = null;
+
+// Initialize to start of week (Sunday)
+function getWeekStart(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
+}
+
+// Load calendar when tab is shown
+document.getElementById('calendar-tab').addEventListener('click', function() {
+    if (document.getElementById('calendarWeekView').querySelector('.calendar-week-grid') === null) {
+        calendarToday();
+    }
+});
+
+function calendarToday() {
+    calendarWeekStart = getWeekStart(new Date());
+    loadCalendar();
+}
+
+function calendarPrevWeek() {
+    calendarWeekStart.setDate(calendarWeekStart.getDate() - 7);
+    loadCalendar();
+}
+
+function calendarNextWeek() {
+    calendarWeekStart.setDate(calendarWeekStart.getDate() + 7);
+    loadCalendar();
+}
+
+async function loadCalendar() {
+    const container = document.getElementById('calendarWeekView');
+    
+    try {
+        // Fetch all activities and accommodations
+        const [activitiesRes, accommodationsRes] = await Promise.all([
+            fetch(`/api/travel/trips/${tripId}/activities`, { credentials: 'include' }),
+            fetch(`/api/travel/trips/${tripId}/accommodations`, { credentials: 'include' })
+        ]);
+        
+        const activitiesData = await activitiesRes.json();
+        const accommodationsData = await accommodationsRes.json();
+        
+        // Organize events by day
+        calendarEvents = {};
+        
+        for (let i = 0; i < 7; i++) {
+            const dayDate = new Date(calendarWeekStart);
+            dayDate.setDate(calendarWeekStart.getDate() + i);
+            const dateStr = dayDate.toISOString().split('T')[0];
+            calendarEvents[dateStr] = [];
+        }
+        
+        // Add activities
+        if (activitiesData.success && activitiesData.activities) {
+            activitiesData.activities.forEach(activity => {
+                // Handle both start_datetime and start_date formats
+                const startDate = activity.start_datetime 
+                    ? activity.start_datetime.split('T')[0] 
+                    : (activity.start_date || '').split('T')[0];
+                const endDate = activity.end_datetime 
+                    ? activity.end_datetime.split('T')[0] 
+                    : (activity.end_date || '').split('T')[0];
+                    
+                if (!startDate || !endDate) return;
+                
+                // Add to each day in the week that this activity spans
+                for (let dateStr in calendarEvents) {
+                    if (dateStr >= startDate && dateStr <= endDate) {
+                        // Use start_datetime if available, otherwise fall back to start_date + start_time
+                        let startTime = '09:00';
+                        let endTime = '10:00';
+                        
+                        if (activity.start_datetime) {
+                            startTime = activity.start_datetime.split('T')[1].substring(0, 5);
+                        } else if (activity.start_time) {
+                            startTime = activity.start_time;
+                        }
+                        
+                        if (activity.end_datetime) {
+                            endTime = activity.end_datetime.split('T')[1].substring(0, 5);
+                        } else if (activity.end_time) {
+                            endTime = activity.end_time;
+                        }
+                        
+                        // If multi-day event, adjust times
+                        if (startDate < dateStr) startTime = '00:00';
+                        if (endDate > dateStr) endTime = '23:59';
+                        
+                        calendarEvents[dateStr].push({
+                            id: activity.id,
+                            type: 'activity',
+                            category: activity.category,
+                            title: activity.name,
+                            startTime: startTime,
+                            endTime: endTime,
+                            location: activity.location_name || '',
+                            startDate: startDate,
+                            endDate: endDate
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Add accommodations
+        if (accommodationsData.success && accommodationsData.accommodations) {
+            accommodationsData.accommodations.forEach(accommodation => {
+                // Handle date formats
+                let checkIn = accommodation.check_in_date || '';
+                let checkOut = accommodation.check_out_date || '';
+                
+                if (!checkIn || !checkOut) return;
+                
+                checkIn = checkIn.split('T')[0];
+                checkOut = checkOut.split('T')[0];
+                
+                for (let dateStr in calendarEvents) {
+                    if (dateStr >= checkIn && dateStr <= checkOut) {
+                        let startTime = checkIn === dateStr ? (accommodation.check_in_time || '15:00') : '00:00';
+                        let endTime = checkOut === dateStr ? (accommodation.check_out_time || '11:00') : '23:59';
+                        
+                        calendarEvents[dateStr].push({
+                            id: accommodation.id,
+                            type: 'accommodation',
+                            category: 'accommodation',
+                            title: accommodation.name,
+                            startTime: startTime,
+                            endTime: endTime,
+                            location: accommodation.address || accommodation.city || '',
+                            startDate: checkIn,
+                            endDate: checkOut
+                        });
+                    }
+                }
+            });
+        }
+        
+        renderWeekView();
+        updateWeekHeader();
+        
+    } catch (error) {
+        console.error('Error loading calendar:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger m-3">
+                <i class="fas fa-exclamation-triangle"></i> Failed to load calendar: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function updateWeekHeader() {
+    const weekEnd = new Date(calendarWeekStart);
+    weekEnd.setDate(calendarWeekStart.getDate() + 6);
+    
+    const options = { month: 'long', day: 'numeric', year: 'numeric' };
+    const rangeText = `${calendarWeekStart.toLocaleDateString(undefined, options)} - ${weekEnd.toLocaleDateString(undefined, options)}`;
+    
+    document.getElementById('calendarWeekRange').textContent = rangeText;
+    
+    // Show trip info
+    const tripStartStr = '{{ trip.start_date }}';
+    const tripEndStr = '{{ trip.end_date }}';
+    if (tripStartStr && tripEndStr) {
+        const tripStart = new Date(tripStartStr.split('T')[0]);
+        const tripEnd = new Date(tripEndStr.split('T')[0]);
+        document.getElementById('calendarTripInfo').textContent = 
+            `Trip: ${tripStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${tripEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
     }
 }
 

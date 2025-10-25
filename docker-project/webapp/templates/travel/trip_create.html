@@ -67,12 +67,13 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="destination_city" class="form-label">City</label>
+                        <label for="destination_city" class="form-label">City ☁️</label>
                         <input type="text" class="form-control" id="destination_city" name="destination_city" 
-                               placeholder="e.g., Paris">
+                               placeholder="e.g., Paris" autocomplete="off">
+                        <div class="form-text">Start typing to search for locations</div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="destination_country" class="form-label">Country</label>
+                        <label for="destination_country" class="form-label">Country ☁️</label>
                         <input type="text" class="form-control" id="destination_country" name="destination_country" 
                                placeholder="e.g., France">
                     </div>
@@ -156,7 +157,134 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<style>
+.suggestions-dropdown {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+.suggestion-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: all 0.15s ease-in-out;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #e7f3ff;
+    padding-left: 1rem;
+}
+
+.suggestion-item .fw-bold {
+    color: #0d6efd;
+}
+</style>
+
 <script>
+// City autocomplete functionality
+let searchTimeout;
+
+function attachCityAutocomplete(inputId, cityFieldId, countryFieldId) {
+    const input = document.getElementById(inputId);
+    const cityField = document.getElementById(cityFieldId);
+    const countryField = document.getElementById(countryFieldId);
+    
+    if (!input) return;
+    
+    // Create dropdown container
+    const dropdown = document.createElement('div');
+    dropdown.className = 'suggestions-dropdown';
+    dropdown.style.display = 'none';
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(dropdown);
+    
+    input.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 3) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`/weather/api/search-locations?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.success && data.locations && data.locations.length > 0) {
+                    dropdown.innerHTML = '';
+                    
+                    data.locations.forEach(location => {
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        
+                        // Build display text
+                        let displayText = `<div class="fw-bold">${location.icon} ${location.name}</div>`;
+                        
+                        let addressParts = [];
+                        if (location.road) addressParts.push(location.road);
+                        if (location.city && location.city !== location.name) addressParts.push(location.city);
+                        if (location.country) addressParts.push(location.country);
+                        
+                        if (addressParts.length > 0) {
+                            displayText += `<small class="text-muted">${addressParts.join(', ')}</small>`;
+                        }
+                        
+                        item.innerHTML = displayText;
+                        
+                        item.addEventListener('click', function() {
+                            // Use city if available, otherwise use name
+                            const cityValue = location.city || location.name;
+                            const countryValue = location.country || '';
+                            
+                            input.value = cityValue;
+                            if (cityField) cityField.value = cityValue;
+                            if (countryField) countryField.value = countryValue;
+                            
+                            dropdown.style.display = 'none';
+                        });
+                        
+                        dropdown.appendChild(item);
+                    });
+                    
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error fetching locations:', error);
+                dropdown.style.display = 'none';
+            }
+        }, 300); // Debounce delay
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+}
+
+// Initialize autocomplete when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    attachCityAutocomplete('destination_city', 'destination_city', 'destination_country');
+});
+
 // Set minimum date to today
 document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
 
