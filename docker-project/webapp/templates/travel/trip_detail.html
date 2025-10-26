@@ -2743,10 +2743,7 @@ document.getElementById('accommodations-tab').addEventListener('shown.bs.tab', l
 let activityModal, accommodationModal, expenseModal, packingModal;
 
 document.addEventListener('DOMContentLoaded', function() {
-    activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
-    accommodationModal = new bootstrap.Modal(document.getElementById('accommodationModal'));
-    expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
-    packingModal = new bootstrap.Modal(document.getElementById('packingModal'));
+    // Modals are now initialized in init.js
     
     // Initialize map on page load since overview tab is active by default
     initializeMap();

@@ -21,12 +21,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize modals (Bootstrap)
     try {
         if (typeof bootstrap !== 'undefined') {
-            window.activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
-            window.accommodationModal = new bootstrap.Modal(document.getElementById('accommodationModal'));
-            window.expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
-            window.packingModal = new bootstrap.Modal(document.getElementById('packingModal'));
-            window.shareModal = new bootstrap.Modal(document.getElementById('shareModal'));
-            window.permissionModal = new bootstrap.Modal(document.getElementById('permissionModal'));
+            const modalIds = ['activityModal', 'accommodationModal', 'expenseModal', 'packingModal', 'shareModal', 'permissionModal'];
+            modalIds.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    window[id] = new bootstrap.Modal(element);
+                } else {
+                    console.warn(`Modal element #${id} not found`);
+                }
+            });
             console.log('✓ Bootstrap modals initialized');
         }
     } catch (e) {
