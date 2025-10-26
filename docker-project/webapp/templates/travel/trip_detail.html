@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- External CSS files -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/trip_detail.css') }}?v={{ range(1, 10000) | random }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}?v={{ range(1, 10000) | random }}">
+
 <!-- FullCalendar CSS -->
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
 
@@ -1599,7 +1603,16 @@ const tripCity = "{{ trip.destination_city or '' }}";
 const tripCountry = "{{ trip.destination_country or '' }}";
 const tripStartDate = "{{ trip.start_date }}";
 const tripEndDate = "{{ trip.end_date }}";
+</script>
 
+<!-- External JavaScript Modules (load in order) -->
+<script src="{{ url_for('static', filename='js/trip/utils.js') }}?v={{ range(1, 10000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/trip/calendar.js') }}?v={{ range(1, 10000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/trip/main.js') }}?v={{ range(1, 10000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/trip/init.js') }}?v={{ range(1, 10000) | random }}"></script>
+
+<!-- Remaining inline functionality -->
+<script>
 // Global permissions object
 let userPermissions = null;
 let isOwner = false;
